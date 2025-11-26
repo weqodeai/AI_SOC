@@ -1,1794 +1,1420 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="Enterprise-grade SIEM Integration Architecture - AI-Augmented Security Operations Center">
     <title>SIEM Integration Architecture | AI-SOC Research</title>
-    <link rel="icon" type="image/x-icon" href="../assets/favicon.ico">
-    <style>
-        /* Import refined font weights */
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    <link rel="icon" type="image/x-icon" href="assets/favicon.ico">
 
-        /* CSS Variables */
-        :root {
-            --blue-primary: #0a84ff;
-            --purple-accent: #8b7ba8;
-            --teal-accent: #5a9aa8;
-            --green-success: #30d158;
-            --orange-warning: #ff9f0a;
-            --red-critical: #ff453a;
-            --gray-100: #ffffff;
-            --gray-200: #e0e0e0;
-            --gray-300: #b0b0b0;
-            --gray-400: #9a9a9a;
-            --gray-500: #808080;
-            --gray-600: #666666;
-            --gray-800: #1c1c1e;
-            --gray-900: #121212;
-            --overlay-light: rgba(255, 255, 255, 0.06);
-            --overlay-medium: rgba(255, 255, 255, 0.12);
-            --overlay-blue: rgba(10, 132, 255, 0.1);
-            --code-bg: rgba(18, 18, 18, 0.8);
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        'display': ['Space Grotesk', 'system-ui', 'sans-serif'],
+                        'body': ['Inter', 'system-ui', 'sans-serif'],
+                        'mono': ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: {
+                        'onyx': {
+                            950: '#030303',
+                            900: '#0a0a0a',
+                            800: '#111111',
+                            700: '#1a1a1a',
+                            600: '#2a2a2a',
+                        },
+                        'electric': {
+                            DEFAULT: '#3b82f6',
+                            dim: '#2563eb',
+                            bright: '#60a5fa',
+                        },
+                        'amber': {
+                            DEFAULT: '#f59e0b',
+                            dim: '#d97706',
+                            bright: '#fbbf24',
+                        },
+                        'royal': {
+                            DEFAULT: '#8b5cf6',
+                            dim: '#7c3aed',
+                            bright: '#a78bfa',
+                        },
+                    },
+                },
+            },
+        }
+    </script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- GSAP + Plugins -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+
+    <style>
+        /* ═══════════════════════════════════════════════════════════════════════════
+           BASE STYLES
+           ═══════════════════════════════════════════════════════════════════════════ */
+        html {
+            scroll-behavior: smooth;
+            scrollbar-width: thin;
+            scrollbar-color: #2a2a2a #030303;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
+        ::selection {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #030303; }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(180deg, #3b82f6, #8b5cf6);
+            border-radius: 3px;
         }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            background: #000000;
-            color: #e0e0e0;
-            line-height: 1.7;
-            overflow-x: hidden;
-            position: relative;
+            cursor: none;
         }
 
-        /* Background texture */
-        body::before {
-            content: '';
+        /* ═══════════════════════════════════════════════════════════════════════════
+           PARTICLE CANVAS
+           ═══════════════════════════════════════════════════════════════════════════ */
+        #particle-canvas {
             position: fixed;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background-image:
-                radial-gradient(at 40% 20%, rgba(10, 132, 255, 0.03) 0px, transparent 50%),
-                radial-gradient(at 80% 80%, rgba(138, 123, 168, 0.03) 0px, transparent 50%);
-            pointer-events: none;
-            z-index: -1;
-        }
-
-        /* Header */
-        .header {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            z-index: 1000;
-            background: rgba(0, 0, 0, 0.7);
-            backdrop-filter: blur(30px) saturate(180%);
-            border-bottom: 1px solid var(--overlay-light);
-            box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.03);
-            padding: 1rem 2rem;
-        }
-
-        .header-content {
-            max-width: 1600px;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            text-decoration: none;
-            color: #ffffff;
-            font-size: 1.1rem;
-            font-weight: 400;
-            letter-spacing: -0.02em;
-        }
-
-        .breadcrumb {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            font-size: 0.875rem;
-            color: var(--gray-400);
-        }
-
-        .breadcrumb a {
-            color: var(--gray-400);
-            text-decoration: none;
-            transition: color 0.2s;
-        }
-
-        .breadcrumb a:hover {
-            color: var(--blue-primary);
-        }
-
-        .breadcrumb span {
-            color: var(--gray-600);
-        }
-
-        .breadcrumb .current {
-            color: var(--gray-200);
-        }
-
-        /* Hero Section */
-        .hero {
-            margin-top: 80px;
-            padding: 5rem 2rem 3rem;
-            text-align: center;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -10%;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 800px;
-            height: 400px;
-            background: radial-gradient(
-                ellipse at center,
-                rgba(10, 132, 255, 0.15) 0%,
-                rgba(138, 123, 168, 0.08) 40%,
-                transparent 70%
-            );
-            filter: blur(80px);
-            z-index: 0;
-        }
-
-        .hero-content {
-            position: relative;
+            width: 100%;
+            height: 100%;
             z-index: 1;
-            max-width: 1200px;
-            margin: 0 auto;
-        }
-
-        .badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            background: var(--overlay-blue);
-            border: 1px solid rgba(10, 132, 255, 0.3);
-            color: var(--blue-primary);
-            padding: 0.5rem 1.25rem;
-            border-radius: 50px;
-            font-size: 0.875rem;
-            font-weight: 600;
-            letter-spacing: 0.02em;
-            margin-bottom: 2rem;
-        }
-
-        .hero h1 {
-            font-size: 4rem;
-            font-weight: 300;
-            letter-spacing: -0.04em;
-            line-height: 1.1;
-            margin-bottom: 1.5rem;
-            background: linear-gradient(135deg, var(--gray-100) 0%, var(--gray-300) 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .hero-subtitle {
-            font-size: 1.35rem;
-            font-weight: 400;
-            color: var(--gray-400);
-            letter-spacing: -0.01em;
-            line-height: 1.8;
-            max-width: 900px;
-            margin: 0 auto 2.5rem;
-        }
-
-        .hero-meta {
-            display: flex;
-            justify-content: center;
-            gap: 3rem;
-            flex-wrap: wrap;
-            margin-top: 3rem;
-        }
-
-        .meta-item {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .meta-label {
-            font-size: 0.8rem;
-            color: var(--gray-500);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-            margin-bottom: 0.5rem;
-        }
-
-        .meta-value {
-            font-size: 1.75rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, var(--blue-primary) 0%, #0066cc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        /* Main Content */
-        .container {
-            max-width: 1600px;
-            margin: 0 auto;
-            padding: 0 2rem;
-        }
-
-        .content {
-            max-width: 1400px;
-            margin: 0 auto;
-            padding: 4rem 2rem;
-        }
-
-        .section {
-            margin-bottom: 6rem;
-        }
-
-        .section-header {
-            margin-bottom: 3rem;
-            text-align: center;
-        }
-
-        .section-label {
-            font-size: 0.875rem;
-            font-weight: 600;
-            letter-spacing: 0.1em;
-            text-transform: uppercase;
-            color: var(--blue-primary);
-            margin-bottom: 1rem;
-        }
-
-        .section-title {
-            font-size: 2.5rem;
-            font-weight: 300;
-            letter-spacing: -0.03em;
-            color: var(--gray-100);
-            margin-bottom: 1rem;
-        }
-
-        .section-description {
-            font-size: 1.125rem;
-            color: var(--gray-400);
-            max-width: 800px;
-            margin: 0 auto;
-            line-height: 1.8;
-        }
-
-        /* Architecture Overview Grid */
-        .architecture-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-
-        .arch-card {
-            background: rgba(18, 18, 18, 0.6);
-            border: 1px solid var(--overlay-light);
-            border-radius: 20px;
-            padding: 2.5rem;
-            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-            backdrop-filter: blur(20px);
-            position: relative;
-            overflow: hidden;
-        }
-
-        .arch-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 150px;
-            background: linear-gradient(
-                135deg,
-                rgba(10, 132, 255, 0.08) 0%,
-                transparent 100%
-            );
-            opacity: 0;
-            transition: opacity 0.5s ease;
             pointer-events: none;
-        }
-
-        .arch-card:hover {
-            transform: translateY(-8px);
-            border-color: rgba(10, 132, 255, 0.3);
-            box-shadow: 0 20px 60px rgba(10, 132, 255, 0.15);
-        }
-
-        .arch-card:hover::before {
-            opacity: 1;
-        }
-
-        .arch-card-content {
-            position: relative;
-            z-index: 1;
-        }
-
-        .arch-icon {
-            font-size: 3rem;
-            margin-bottom: 1.5rem;
-            display: block;
-        }
-
-        .arch-title {
-            font-size: 1.5rem;
-            font-weight: 500;
-            color: var(--gray-100);
-            margin-bottom: 1rem;
-            letter-spacing: -0.02em;
-        }
-
-        .arch-description {
-            font-size: 1rem;
-            color: var(--gray-400);
-            line-height: 1.7;
-            margin-bottom: 1.5rem;
-        }
-
-        .arch-specs {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            padding-top: 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .spec-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 0.925rem;
-        }
-
-        .spec-label {
-            color: var(--gray-500);
-        }
-
-        .spec-value {
-            color: var(--gray-200);
-            font-weight: 500;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        /* Stack Breakdown */
-        .stack-container {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 3rem;
-            margin-top: 3rem;
-        }
-
-        .stack-section {
-            background: rgba(18, 18, 18, 0.6);
-            border: 1px solid var(--overlay-light);
-            border-radius: 20px;
-            padding: 3rem;
-            backdrop-filter: blur(20px);
-        }
-
-        .stack-header {
-            display: flex;
-            align-items: center;
-            gap: 1.5rem;
-            margin-bottom: 2rem;
-            padding-bottom: 1.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .stack-icon {
-            font-size: 3rem;
-        }
-
-        .stack-info h3 {
-            font-size: 2rem;
-            font-weight: 500;
-            color: var(--gray-100);
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.02em;
-        }
-
-        .stack-info p {
-            font-size: 1rem;
-            color: var(--gray-400);
-        }
-
-        .components-list {
-            display: grid;
-            gap: 1.5rem;
-        }
-
-        .component {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid var(--overlay-light);
-            border-radius: 12px;
-            padding: 1.5rem;
-            transition: all 0.3s ease;
-        }
-
-        .component:hover {
-            border-color: rgba(10, 132, 255, 0.3);
-            background: rgba(10, 132, 255, 0.05);
-            transform: translateX(8px);
-        }
-
-        .component-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 1rem;
-        }
-
-        .component-name {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--gray-100);
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .component-version {
-            background: rgba(10, 132, 255, 0.15);
-            border: 1px solid rgba(10, 132, 255, 0.3);
-            color: var(--blue-primary);
-            padding: 0.25rem 0.75rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 500;
-            font-family: 'JetBrains Mono', monospace;
-        }
-
-        .component-desc {
-            font-size: 0.95rem;
-            color: var(--gray-400);
-            line-height: 1.6;
-            margin-bottom: 1rem;
-        }
-
-        .component-features {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 0.5rem;
-        }
-
-        .feature-tag {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: var(--gray-300);
-            padding: 0.375rem 0.875rem;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            font-weight: 500;
-        }
-
-        /* Data Flow Diagram */
-        .flow-diagram {
-            background: rgba(18, 18, 18, 0.6);
-            border: 1px solid var(--overlay-light);
-            border-radius: 20px;
-            padding: 3rem;
-            backdrop-filter: blur(20px);
-            margin-top: 3rem;
-        }
-
-        .flow-stages {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1.5rem;
-            margin-top: 2rem;
-        }
-
-        .flow-stage {
-            position: relative;
-            text-align: center;
-        }
-
-        .flow-stage::after {
-            content: '→';
-            position: absolute;
-            right: -1.5rem;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 2rem;
-            color: var(--blue-primary);
             opacity: 0.5;
         }
 
-        .flow-stage:last-child::after {
-            display: none;
-        }
-
-        .flow-number {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            width: 48px;
-            height: 48px;
-            background: linear-gradient(135deg, var(--blue-primary) 0%, #0066cc 100%);
-            border-radius: 50%;
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: white;
-            margin-bottom: 1rem;
-        }
-
-        .flow-title {
-            font-size: 1.125rem;
-            font-weight: 600;
-            color: var(--gray-100);
-            margin-bottom: 0.5rem;
-        }
-
-        .flow-desc {
-            font-size: 0.875rem;
-            color: var(--gray-400);
-            line-height: 1.5;
-        }
-
-        /* Integration Points */
-        .integration-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-
-        .integration-card {
-            background: rgba(18, 18, 18, 0.6);
-            border: 1px solid var(--overlay-light);
-            border-radius: 16px;
-            padding: 2rem;
-            backdrop-filter: blur(20px);
-            transition: all 0.3s ease;
-        }
-
-        .integration-card:hover {
-            border-color: rgba(10, 132, 255, 0.3);
-            box-shadow: 0 10px 30px rgba(10, 132, 255, 0.1);
-        }
-
-        .integration-badge {
-            background: var(--overlay-blue);
-            border: 1px solid rgba(10, 132, 255, 0.2);
-            color: var(--blue-primary);
-            padding: 0.5rem 1rem;
-            border-radius: 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            display: inline-block;
-            margin-bottom: 1rem;
-        }
-
-        .integration-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--gray-100);
-            margin-bottom: 0.75rem;
-        }
-
-        .integration-path {
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.85rem;
-            color: var(--gray-400);
-            background: rgba(0, 0, 0, 0.4);
-            padding: 0.75rem;
-            border-radius: 8px;
-            margin-bottom: 1rem;
-            overflow-x: auto;
-        }
-
-        /* Production Considerations */
-        .considerations-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2rem;
-            margin-top: 3rem;
-        }
-
-        .consideration-card {
-            background: rgba(18, 18, 18, 0.6);
-            border-left: 4px solid var(--blue-primary);
-            border-radius: 12px;
-            padding: 2rem;
-            backdrop-filter: blur(20px);
-        }
-
-        .consideration-icon {
-            font-size: 2rem;
-            margin-bottom: 1rem;
-        }
-
-        .consideration-title {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--gray-100);
-            margin-bottom: 1rem;
-        }
-
-        .consideration-list {
-            list-style: none;
-            padding: 0;
-        }
-
-        .consideration-list li {
-            padding: 0.5rem 0;
-            padding-left: 1.5rem;
-            position: relative;
-            color: var(--gray-400);
-            font-size: 0.95rem;
-            line-height: 1.6;
-        }
-
-        .consideration-list li::before {
-            content: '✓';
-            position: absolute;
+        /* ═══════════════════════════════════════════════════════════════════════════
+           GRADIENT MESH BACKGROUND
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .gradient-mesh {
+            position: fixed;
+            top: 0;
             left: 0;
-            color: var(--green-success);
-            font-weight: bold;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            background:
+                radial-gradient(ellipse 80% 50% at 20% 40%, rgba(59, 130, 246, 0.12), transparent),
+                radial-gradient(ellipse 60% 60% at 80% 20%, rgba(139, 92, 246, 0.08), transparent),
+                radial-gradient(ellipse 50% 80% at 60% 80%, rgba(236, 72, 153, 0.06), transparent),
+                radial-gradient(ellipse 100% 100% at 50% 50%, rgba(16, 185, 129, 0.04), transparent);
+            animation: gradientShift 25s ease-in-out infinite;
         }
 
-        /* Code Block */
+        @keyframes gradientShift {
+            0%, 100% {
+                background-position: 0% 0%, 100% 0%, 50% 100%, 50% 50%;
+                filter: hue-rotate(0deg);
+            }
+            25% {
+                background-position: 100% 50%, 0% 100%, 100% 0%, 0% 50%;
+            }
+            50% {
+                background-position: 50% 100%, 50% 0%, 0% 50%, 100% 100%;
+                filter: hue-rotate(10deg);
+            }
+            75% {
+                background-position: 0% 50%, 100% 50%, 50% 0%, 50% 0%;
+            }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           NOISE TEXTURE
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .noise-overlay {
+            position: fixed;
+            inset: 0;
+            opacity: 0.03;
+            pointer-events: none;
+            z-index: 2;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 512 512' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           GRADIENT TEXT
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .gradient-text {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 40%, #ec4899 70%, #f59e0b 100%);
+            background-size: 200% 200%;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: gradientText 8s ease infinite;
+        }
+
+        @keyframes gradientText {
+            0%, 100% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           GLASS MORPHISM
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .glass {
+            background: rgba(255, 255, 255, 0.02);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .glass-strong {
+            background: rgba(10, 10, 10, 0.6);
+            backdrop-filter: blur(40px) saturate(200%);
+            -webkit-backdrop-filter: blur(40px) saturate(200%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .glass-card {
+            background: rgba(18, 18, 18, 0.7);
+            backdrop-filter: blur(30px) saturate(180%);
+            -webkit-backdrop-filter: blur(30px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(59, 130, 246, 0.3);
+            box-shadow: 0 20px 60px rgba(59, 130, 246, 0.15);
+            transform: translateY(-4px);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           ANIMATED BORDER
+           ═══════════════════════════════════════════════════════════════════════════ */
+        @property --angle {
+            syntax: '<angle>';
+            initial-value: 0deg;
+            inherits: false;
+        }
+
+        .animated-border {
+            position: relative;
+            background: rgba(10, 10, 10, 0.8);
+            overflow: hidden;
+        }
+
+        .animated-border::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: conic-gradient(from var(--angle), transparent 60%, #3b82f6, #8b5cf6, #ec4899, transparent 80%);
+            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            animation: rotateBorder 8s linear infinite;
+        }
+
+        @keyframes rotateBorder {
+            to { --angle: 360deg; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           FLOATING ELEMENTS
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .float-slow {
+            animation: floatSlow 8s ease-in-out infinite;
+        }
+
+        .float-medium {
+            animation: floatMedium 6s ease-in-out infinite;
+        }
+
+        .float-fast {
+            animation: floatFast 4s ease-in-out infinite;
+        }
+
+        @keyframes floatSlow {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-25px) rotate(2deg); }
+        }
+
+        @keyframes floatMedium {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-18px) rotate(-1deg); }
+        }
+
+        @keyframes floatFast {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           CROSS DECORATIONS
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .cross {
+            font-family: 'Inter', sans-serif;
+            font-weight: 200;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           REVEAL ANIMATIONS
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .reveal-up {
+            opacity: 0;
+            transform: translateY(60px);
+        }
+
+        .reveal-scale {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        .reveal-left {
+            opacity: 0;
+            transform: translateX(-40px);
+        }
+
+        .reveal-right {
+            opacity: 0;
+            transform: translateX(40px);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           LINE DECORATIONS
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .line-glow {
+            position: relative;
+        }
+
+        .line-glow::after {
+            content: '';
+            position: absolute;
+            bottom: -2px;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3b82f6, #8b5cf6, transparent);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+        }
+
+        .line-glow:hover::after {
+            transform: scaleX(1);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           WATERMARK
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .watermark {
+            font-size: clamp(8rem, 20vw, 25rem);
+            line-height: 0.8;
+            font-weight: 700;
+            letter-spacing: -0.06em;
+            white-space: nowrap;
+            user-select: none;
+            pointer-events: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           SECTION DIVIDER
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .section-divider {
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3), transparent);
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           GRID PATTERN
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .grid-pattern {
+            background-image:
+                linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+        }
+
+        .dot-pattern {
+            background-image: radial-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px);
+            background-size: 32px 32px;
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           CURSOR
+           ═══════════════════════════════════════════════════════════════════════════ */
+        @media (min-width: 768px) {
+            * { cursor: none !important; }
+        }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           CODE BLOCK
+           ═══════════════════════════════════════════════════════════════════════════ */
         .code-block {
-            background: var(--code-bg);
-            border: 1px solid var(--overlay-light);
-            border-radius: 12px;
+            background: rgba(10, 10, 10, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 16px;
             padding: 1.5rem;
-            margin: 1.5rem 0;
             overflow-x: auto;
         }
 
         .code-block pre {
             margin: 0;
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.875rem;
-            line-height: 1.6;
-            color: var(--gray-300);
+            font-size: 0.85rem;
+            line-height: 1.7;
+            color: rgba(255, 255, 255, 0.7);
         }
 
-        /* Performance Metrics */
-        .metrics-showcase {
-            background: linear-gradient(135deg, rgba(10, 132, 255, 0.05) 0%, rgba(10, 132, 255, 0.02) 100%);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-top: 3rem;
+        .code-block .comment { color: rgba(255, 255, 255, 0.35); }
+        .code-block .keyword { color: #8b5cf6; }
+        .code-block .string { color: #34d399; }
+        .code-block .number { color: #f59e0b; }
+
+        /* ═══════════════════════════════════════════════════════════════════════════
+           FLOW STAGE
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .flow-connector {
+            position: relative;
         }
 
-        .metrics-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 2rem;
-            margin-top: 2rem;
+        .flow-connector::after {
+            content: '';
+            position: absolute;
+            top: 50%;
+            right: -1rem;
+            width: 2rem;
+            height: 2px;
+            background: linear-gradient(90deg, #3b82f6, transparent);
         }
 
-        .metric {
-            text-align: center;
+        .flow-connector:last-child::after {
+            display: none;
         }
 
-        .metric-icon {
-            font-size: 2.5rem;
-            margin-bottom: 1rem;
+        /* ═══════════════════════════════════════════════════════════════════════════
+           STAT NUMBER
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .stat-glow {
+            text-shadow: 0 0 40px currentColor;
         }
 
-        .metric-value {
-            font-size: 2.5rem;
-            font-weight: 600;
-            background: linear-gradient(135deg, var(--blue-primary) 0%, #0066cc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-            margin-bottom: 0.5rem;
+        /* ═══════════════════════════════════════════════════════════════════════════
+           COMPONENT HOVER
+           ═══════════════════════════════════════════════════════════════════════════ */
+        .component-card {
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
         }
 
-        .metric-label {
-            font-size: 1rem;
-            color: var(--gray-400);
-            font-weight: 500;
-        }
-
-        /* Footer */
-        .footer {
-            max-width: 1600px;
-            margin: 6rem auto 2rem;
-            padding: 3rem 2rem;
-            text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .footer-links {
-            display: flex;
-            justify-content: center;
-            gap: 3rem;
-            margin-bottom: 2rem;
-            flex-wrap: wrap;
-        }
-
-        .footer-links a {
-            color: #b0b0b0;
-            text-decoration: none;
-            transition: color 0.2s;
-            font-size: 0.95rem;
-        }
-
-        .footer-links a:hover {
-            color: #0a84ff;
-        }
-
-        .copyright {
-            color: #808080;
-            font-size: 0.9rem;
-        }
-
-        /* Responsive */
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-
-            .hero-subtitle {
-                font-size: 1.1rem;
-            }
-
-            .section-title {
-                font-size: 2rem;
-            }
-
-            .architecture-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .flow-stages {
-                grid-template-columns: 1fr;
-            }
-
-            .flow-stage::after {
-                content: '↓';
-                right: auto;
-                top: auto;
-                bottom: -1.25rem;
-                left: 50%;
-                transform: translateX(-50%);
-            }
-
-            .breadcrumb {
-                display: none;
-            }
-        }
-
-        /* Scroll animations */
-        .fade-in {
-            opacity: 0;
-            transform: translateY(40px);
-            transition: opacity 0.8s cubic-bezier(0.16, 1, 0.3, 1),
-                        transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .fade-in-visible {
-            opacity: 1;
-            transform: translateY(0);
+        .component-card:hover {
+            transform: translateX(8px);
+            border-color: rgba(59, 130, 246, 0.4);
+            background: rgba(59, 130, 246, 0.05);
         }
     </style>
 </head>
-<body>
-    <header class="header">
-        <div class="header-content">
-            <a href="../portal-landing.html" class="logo">
-                <span>← OnyxLab Research</span>
+
+<body class="bg-onyx-950 text-white antialiased font-body overflow-x-hidden">
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         BACKGROUND LAYERS
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div class="gradient-mesh"></div>
+    <div class="noise-overlay"></div>
+    <canvas id="particle-canvas"></canvas>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         CUSTOM CURSOR
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <div id="cursor" class="hidden md:block fixed top-0 left-0 pointer-events-none z-[9998]">
+        <div id="cursor-dot" class="absolute w-2 h-2 bg-white rounded-full -translate-x-1/2 -translate-y-1/2 mix-blend-difference"></div>
+        <div id="cursor-ring" class="absolute w-10 h-10 border border-white/30 rounded-full -translate-x-1/2 -translate-y-1/2 transition-all duration-200 ease-out"></div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         HEADER
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <header class="fixed top-0 left-0 right-0 z-50 glass-strong">
+        <div class="max-w-7xl mx-auto px-6 md:px-12 py-4 flex items-center justify-between">
+            <a href="../index.html" class="flex items-center gap-3 group">
+                <img src="../assets/logo.png" alt="OnyxLab" class="h-7 w-7 object-contain">
+                <span class="font-display text-base font-semibold tracking-tight">ONYXLAB</span>
             </a>
-            <div class="breadcrumb">
-                <a href="../portal-landing.html">Research</a>
-                <span>/</span>
-                <a href="/ai-soc/">AI-SOC</a>
-                <span>/</span>
-                <span class="current">Architecture</span>
-            </div>
+
+            <nav class="hidden md:flex items-center gap-8">
+                <div class="flex items-center gap-2 text-sm text-white/40">
+                    <a href="../index.html" class="hover:text-white transition-colors">Research</a>
+                    <span>/</span>
+                    <span class="text-white/70">AI-SOC Architecture</span>
+                </div>
+                <div class="h-4 w-px bg-white/10"></div>
+                <a href="https://github.com/zhadyz" target="_blank" rel="noopener" class="text-white/50 hover:text-white transition-colors" aria-label="GitHub">
+                    <i data-lucide="github" class="h-4 w-4"></i>
+                </a>
+            </nav>
+
+            <button class="md:hidden glass rounded-full p-2.5 hover:bg-white/10 transition-colors" aria-label="Menu">
+                <i data-lucide="menu" class="h-5 w-5"></i>
+            </button>
         </div>
     </header>
 
-    <section class="hero">
-        <div class="hero-content">
-            <div class="badge">
-                <span>🏗️</span>
-                <span>ENTERPRISE ARCHITECTURE</span>
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         HERO SECTION
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="relative min-h-[90vh] flex items-center justify-center overflow-hidden z-10 pt-20">
+        <!-- Floating Decorative Elements -->
+        <div class="absolute inset-0 z-[3] pointer-events-none overflow-hidden">
+            <span class="cross absolute text-4xl text-white/5 left-[8%] top-[20%] float-slow">+</span>
+            <span class="cross absolute text-2xl text-white/8 left-[25%] top-[35%] float-medium" style="animation-delay: -2s">+</span>
+            <span class="cross absolute text-5xl text-white/3 right-[10%] top-[15%] float-slow" style="animation-delay: -4s">+</span>
+            <span class="cross absolute text-3xl text-white/6 right-[20%] top-[45%] float-fast">+</span>
+            <span class="cross absolute text-2xl text-white/4 left-[15%] bottom-[25%] float-medium" style="animation-delay: -1s">+</span>
+            <span class="cross absolute text-4xl text-white/5 right-[15%] bottom-[30%] float-slow" style="animation-delay: -3s">+</span>
+            <div class="absolute w-72 h-72 border border-white/[0.02] rounded-full left-[5%] top-[30%] float-slow"></div>
+            <div class="absolute w-96 h-96 border border-white/[0.015] rounded-full right-[8%] bottom-[20%] float-medium" style="animation-delay: -3s"></div>
+        </div>
+
+        <!-- Hero Glow -->
+        <div class="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[500px] bg-electric/10 rounded-full blur-[150px] pointer-events-none"></div>
+
+        <!-- Content -->
+        <div class="relative z-10 max-w-5xl mx-auto px-6 md:px-12 text-center">
+            <!-- Badge -->
+            <div class="reveal-up inline-flex items-center gap-3 glass-strong rounded-full px-5 py-2.5 mb-10">
+                <i data-lucide="layers" class="h-4 w-4 text-electric"></i>
+                <span class="text-sm text-white/70 font-medium tracking-wide">Enterprise Architecture</span>
+                <span class="text-white/30">|</span>
+                <span class="text-xs text-electric font-mono">v2.0</span>
             </div>
-            <h1>SIEM Integration Architecture</h1>
-            <p class="hero-subtitle">
+
+            <!-- Headline -->
+            <h1 class="reveal-up font-display text-4xl sm:text-5xl md:text-6xl lg:text-7xl xl:text-[5.5rem] font-bold tracking-[-0.03em] leading-[0.95] mb-8">
+                SIEM Integration<br>
+                <span class="gradient-text">Architecture</span>
+            </h1>
+
+            <!-- Subtitle -->
+            <p class="reveal-up text-lg md:text-xl text-white/40 max-w-3xl mx-auto mb-14 leading-relaxed font-light">
                 Production-grade security operations center with AI-powered threat detection,
                 automated response workflows, and real-time monitoring. Built on enterprise SIEM
                 infrastructure with 99.28% ML detection accuracy.
             </p>
-            <div class="hero-meta">
-                <div class="meta-item">
-                    <span class="meta-label">Containers</span>
-                    <span class="meta-value">35+</span>
+
+            <!-- Meta Stats -->
+            <div class="reveal-up grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8">
+                <div class="glass-strong rounded-2xl p-6 text-center">
+                    <div class="font-display text-3xl md:text-4xl font-bold text-electric stat-glow mb-2">35+</div>
+                    <div class="text-xs text-white/40 uppercase tracking-wider">Containers</div>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">Microservices</span>
-                    <span class="meta-value">6</span>
+                <div class="glass-strong rounded-2xl p-6 text-center">
+                    <div class="font-display text-3xl md:text-4xl font-bold text-royal stat-glow mb-2">6</div>
+                    <div class="text-xs text-white/40 uppercase tracking-wider">Microservices</div>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">Uptime</span>
-                    <span class="meta-value">99.9%</span>
+                <div class="glass-strong rounded-2xl p-6 text-center">
+                    <div class="font-display text-3xl md:text-4xl font-bold text-emerald-400 stat-glow mb-2">99.9%</div>
+                    <div class="text-xs text-white/40 uppercase tracking-wider">Uptime</div>
                 </div>
-                <div class="meta-item">
-                    <span class="meta-label">Response Time</span>
-                    <span class="meta-value">&lt;100ms</span>
+                <div class="glass-strong rounded-2xl p-6 text-center">
+                    <div class="font-display text-3xl md:text-4xl font-bold text-amber stat-glow mb-2">&lt;100ms</div>
+                    <div class="text-xs text-white/40 uppercase tracking-wider">Response</div>
                 </div>
             </div>
         </div>
+
+        <!-- Massive Watermark -->
+        <div class="absolute bottom-0 left-0 right-0 z-[1] overflow-hidden pointer-events-none">
+            <div class="watermark text-center text-white/[0.015] translate-y-[45%]">ARCHITECTURE</div>
+        </div>
+
+        <!-- Scroll Indicator -->
+        <div class="absolute bottom-10 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 text-white/30">
+            <span class="text-[10px] font-mono tracking-[0.3em] uppercase">Scroll</span>
+            <div class="w-px h-12 bg-gradient-to-b from-white/30 via-electric/50 to-transparent"></div>
+        </div>
     </section>
 
-    <div class="content">
-        <!-- ARCHITECTURE OVERVIEW -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">SYSTEM DESIGN</p>
-                <h2 class="section-title">Architecture Overview</h2>
-                <p class="section-description">
+    <!-- Section Divider -->
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         ARCHITECTURE OVERVIEW
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="relative py-32 md:py-40 overflow-hidden z-10">
+        <div class="absolute inset-0 grid-pattern opacity-50"></div>
+
+        <div class="relative z-10 max-w-7xl mx-auto px-6 md:px-12">
+            <!-- Section Header -->
+            <div class="text-center mb-20">
+                <div class="reveal-up inline-flex items-center gap-4 mb-6">
+                    <div class="h-px w-12 bg-white/20"></div>
+                    <span class="text-xs font-mono text-electric tracking-[0.2em] uppercase">System Design</span>
+                    <div class="h-px w-12 bg-white/20"></div>
+                </div>
+                <h2 class="reveal-up font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+                    Architecture <span class="gradient-text">Overview</span>
+                </h2>
+                <p class="reveal-up text-lg text-white/40 max-w-3xl mx-auto">
                     Modular, containerized architecture following microservices patterns.
                     Six primary stacks orchestrated via Docker Compose with network segmentation,
                     service mesh integration, and comprehensive monitoring.
                 </p>
             </div>
 
-            <div class="architecture-grid">
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🛡️</span>
-                        <h3 class="arch-title">SIEM Stack</h3>
-                        <p class="arch-description">
-                            Wazuh-based security information and event management.
-                            Real-time log ingestion, correlation, and alerting with OpenSearch backend.
-                        </p>
-                        <div class="arch-specs">
-                            <div class="spec-item">
-                                <span class="spec-label">Components</span>
-                                <span class="spec-value">3</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Storage</span>
-                                <span class="spec-value">OpenSearch</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Ports</span>
-                                <span class="spec-value">443, 9200</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🤖</span>
-                        <h3 class="arch-title">SOAR Stack</h3>
-                        <p class="arch-description">
-                            Security Orchestration, Automation and Response. TheHive case management,
-                            Cortex analyzers, and Shuffle workflow automation.
-                        </p>
-                        <div class="arch-specs">
-                            <div class="spec-item">
-                                <span class="spec-label">Components</span>
-                                <span class="spec-value">10</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Storage</span>
-                                <span class="spec-value">Cassandra, MinIO</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Ports</span>
-                                <span class="spec-value">9010, 9011, 3001</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🧠</span>
-                        <h3 class="arch-title">AI Services</h3>
-                        <p class="arch-description">
-                            Machine learning inference, alert triage, and RAG-based threat intelligence.
-                            Ensemble models with 99.28% accuracy on CICIDS2017 dataset.
-                        </p>
-                        <div class="arch-specs">
-                            <div class="spec-item">
-                                <span class="spec-label">Components</span>
-                                <span class="spec-value">4</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Models</span>
-                                <span class="spec-value">RF, XGBoost, DT</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Ports</span>
-                                <span class="spec-value">8500, 8100, 8300</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">📊</span>
-                        <h3 class="arch-title">Monitoring Stack</h3>
-                        <p class="arch-description">
-                            Prometheus metrics, Grafana visualization, AlertManager notifications,
-                            and Loki log aggregation. 13 scrape targets with real-time alerting.
-                        </p>
-                        <div class="arch-specs">
-                            <div class="spec-item">
-                                <span class="spec-label">Components</span>
-                                <span class="spec-value">7</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Targets</span>
-                                <span class="spec-value">13</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Ports</span>
-                                <span class="spec-value">9090, 3000, 9093</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🌐</span>
-                        <h3 class="arch-title">Network Analysis</h3>
-                        <p class="arch-description">
-                            Suricata IDS/IPS and Zeek passive analysis. Deep packet inspection,
-                            protocol analysis, and threat intelligence integration.
-                        </p>
-                        <div class="arch-specs">
-                            <div class="spec-item">
-                                <span class="spec-label">Components</span>
-                                <span class="spec-value">3</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Mode</span>
-                                <span class="spec-value">IDS/IPS</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Requirement</span>
-                                <span class="spec-value">Linux Host</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🔗</span>
-                        <h3 class="arch-title">Network Mesh</h3>
-                        <p class="arch-description">
-                            Segmented Docker networks with frontend/backend separation.
-                            Service discovery, load balancing, and encrypted inter-service communication.
-                        </p>
-                        <div class="arch-specs">
-                            <div class="spec-item">
-                                <span class="spec-label">Networks</span>
-                                <span class="spec-value">6</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Subnets</span>
-                                <span class="spec-value">172.20-30.x</span>
-                            </div>
-                            <div class="spec-item">
-                                <span class="spec-label">Isolation</span>
-                                <span class="spec-value">Backend/Frontend</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- COMPONENT BREAKDOWN -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">DETAILED BREAKDOWN</p>
-                <h2 class="section-title">Containerized Microservices</h2>
-                <p class="section-description">
-                    Enterprise-grade components with health checks, resource limits,
-                    and production-ready configurations. All services containerized for portability and scalability.
-                </p>
-            </div>
-
-            <div class="stack-container">
+            <!-- Architecture Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
                 <!-- SIEM Stack -->
-                <div class="stack-section">
-                    <div class="stack-header">
-                        <span class="stack-icon">🛡️</span>
-                        <div class="stack-info">
-                            <h3>SIEM Stack</h3>
-                            <p>Security Information and Event Management</p>
-                        </div>
+                <div class="reveal-scale glass-card rounded-2xl p-8 group">
+                    <div class="h-14 w-14 rounded-2xl bg-electric/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <i data-lucide="shield" class="h-7 w-7 text-electric"></i>
                     </div>
-
-                    <div class="components-list">
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">wazuh-manager</span>
-                                <span class="component-version">4.8.2</span>
-                            </div>
-                            <p class="component-desc">
-                                Core SIEM engine. Processes security events, runs correlation rules,
-                                generates alerts, and manages agent fleet. Integrates with TheHive for case creation.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Log Analysis</span>
-                                <span class="feature-tag">Rule Correlation</span>
-                                <span class="feature-tag">Agent Management</span>
-                                <span class="feature-tag">API Gateway</span>
-                            </div>
+                    <h3 class="font-display text-xl font-semibold mb-3">SIEM Stack</h3>
+                    <p class="text-white/50 text-sm leading-relaxed mb-6">
+                        Wazuh-based security information and event management.
+                        Real-time log ingestion, correlation, and alerting with OpenSearch backend.
+                    </p>
+                    <div class="space-y-3 pt-6 border-t border-white/5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Components</span>
+                            <span class="text-white/70 font-mono">3</span>
                         </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">wazuh-indexer</span>
-                                <span class="component-version">4.8.2</span>
-                            </div>
-                            <p class="component-desc">
-                                OpenSearch-based data store. Indexes security events, provides full-text search,
-                                and powers the dashboard with real-time queries. Configured for single-node deployment.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Data Indexing</span>
-                                <span class="feature-tag">Full-Text Search</span>
-                                <span class="feature-tag">Cluster Management</span>
-                                <span class="feature-tag">RESTful API</span>
-                            </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Storage</span>
+                            <span class="text-white/70 font-mono">OpenSearch</span>
                         </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">wazuh-dashboard</span>
-                                <span class="component-version">4.8.2</span>
-                            </div>
-                            <p class="component-desc">
-                                Web UI for visualization and analysis. Real-time dashboards, alert investigation,
-                                compliance reporting, and system configuration. HTTPS-enabled with SSL/TLS.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Visualization</span>
-                                <span class="feature-tag">Alert Investigation</span>
-                                <span class="feature-tag">Compliance Dashboards</span>
-                                <span class="feature-tag">HTTPS/SSL</span>
-                            </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Ports</span>
+                            <span class="text-white/70 font-mono">443, 9200</span>
                         </div>
                     </div>
                 </div>
 
                 <!-- SOAR Stack -->
-                <div class="stack-section">
-                    <div class="stack-header">
-                        <span class="stack-icon">🤖</span>
-                        <div class="stack-info">
-                            <h3>SOAR Stack</h3>
-                            <p>Security Orchestration, Automation, and Response</p>
-                        </div>
+                <div class="reveal-scale glass-card rounded-2xl p-8 group">
+                    <div class="h-14 w-14 rounded-2xl bg-royal/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <i data-lucide="bot" class="h-7 w-7 text-royal"></i>
                     </div>
-
-                    <div class="components-list">
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">thehive</span>
-                                <span class="component-version">5.2.9</span>
-                            </div>
-                            <p class="component-desc">
-                                Security incident and case management platform. Automated case creation from Wazuh alerts,
-                                collaborative investigation, task assignment, and integration with Shuffle workflows.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Case Management</span>
-                                <span class="feature-tag">Collaboration</span>
-                                <span class="feature-tag">Wazuh Integration</span>
-                                <span class="feature-tag">Webhook API</span>
-                            </div>
+                    <h3 class="font-display text-xl font-semibold mb-3">SOAR Stack</h3>
+                    <p class="text-white/50 text-sm leading-relaxed mb-6">
+                        Security Orchestration, Automation and Response. TheHive case management,
+                        Cortex analyzers, and Shuffle workflow automation.
+                    </p>
+                    <div class="space-y-3 pt-6 border-t border-white/5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Components</span>
+                            <span class="text-white/70 font-mono">10</span>
                         </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">cortex</span>
-                                <span class="component-version">3.1.7</span>
-                            </div>
-                            <p class="component-desc">
-                                Observable analysis and active response engine. Runs analyzers for IOC enrichment,
-                                malware analysis, and threat intelligence lookup. Integrated with TheHive.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">IOC Analysis</span>
-                                <span class="feature-tag">TI Enrichment</span>
-                                <span class="feature-tag">Responders</span>
-                                <span class="feature-tag">Docker Jobs</span>
-                            </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Storage</span>
+                            <span class="text-white/70 font-mono">Cassandra, MinIO</span>
                         </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">shuffle</span>
-                                <span class="component-version">1.4.0</span>
-                            </div>
-                            <p class="component-desc">
-                                SOAR workflow automation platform. Drag-and-drop playbook creation,
-                                webhook integrations, and automated response execution. Receives alerts from TheHive.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Workflow Automation</span>
-                                <span class="feature-tag">Playbooks</span>
-                                <span class="feature-tag">Webhooks</span>
-                                <span class="feature-tag">API Integrations</span>
-                            </div>
-                        </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">cassandra</span>
-                                <span class="component-version">4.1.3</span>
-                            </div>
-                            <p class="component-desc">
-                                Distributed NoSQL database backend for TheHive and Cortex.
-                                High availability, horizontal scalability, and data replication support.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">NoSQL Storage</span>
-                                <span class="feature-tag">Distributed</span>
-                                <span class="feature-tag">High Availability</span>
-                                <span class="feature-tag">Replication</span>
-                            </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Ports</span>
+                            <span class="text-white/70 font-mono">9010, 9011, 3001</span>
                         </div>
                     </div>
                 </div>
 
-                <!-- AI Services Stack -->
-                <div class="stack-section">
-                    <div class="stack-header">
-                        <span class="stack-icon">🧠</span>
-                        <div class="stack-info">
-                            <h3>AI Services Stack</h3>
-                            <p>Machine Learning and Threat Intelligence</p>
+                <!-- AI Services -->
+                <div class="reveal-scale glass-card rounded-2xl p-8 group">
+                    <div class="h-14 w-14 rounded-2xl bg-amber/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <i data-lucide="brain" class="h-7 w-7 text-amber"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-3">AI Services</h3>
+                    <p class="text-white/50 text-sm leading-relaxed mb-6">
+                        Machine learning inference, alert triage, and RAG-based threat intelligence.
+                        Ensemble models with 99.28% accuracy on CICIDS2017 dataset.
+                    </p>
+                    <div class="space-y-3 pt-6 border-t border-white/5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Components</span>
+                            <span class="text-white/70 font-mono">4</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Models</span>
+                            <span class="text-white/70 font-mono">RF, XGBoost, DT</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Ports</span>
+                            <span class="text-white/70 font-mono">8500, 8100, 8300</span>
                         </div>
                     </div>
+                </div>
 
-                    <div class="components-list">
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">ml-inference-api</span>
-                                <span class="component-version">1.0.0</span>
-                            </div>
-                            <p class="component-desc">
-                                Real-time ML prediction service. Ensemble of Random Forest, XGBoost, and Decision Tree
-                                models achieving 99.28% accuracy on CICIDS2017 dataset. Sub-100ms response time.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Ensemble Models</span>
-                                <span class="feature-tag">99.28% Accuracy</span>
-                                <span class="feature-tag">FastAPI</span>
-                                <span class="feature-tag">&lt;100ms Latency</span>
-                            </div>
+                <!-- Monitoring Stack -->
+                <div class="reveal-scale glass-card rounded-2xl p-8 group">
+                    <div class="h-14 w-14 rounded-2xl bg-emerald-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <i data-lucide="activity" class="h-7 w-7 text-emerald-400"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-3">Monitoring Stack</h3>
+                    <p class="text-white/50 text-sm leading-relaxed mb-6">
+                        Prometheus metrics, Grafana visualization, AlertManager notifications,
+                        and Loki log aggregation. 13 scrape targets with real-time alerting.
+                    </p>
+                    <div class="space-y-3 pt-6 border-t border-white/5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Components</span>
+                            <span class="text-white/70 font-mono">7</span>
                         </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">alert-triage-service</span>
-                                <span class="component-version">1.0.0</span>
-                            </div>
-                            <p class="component-desc">
-                                AI-powered alert prioritization. Uses ML inference and RAG to rank alerts,
-                                reduce false positives, and provide context-aware threat intelligence.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Alert Ranking</span>
-                                <span class="feature-tag">ML Scoring</span>
-                                <span class="feature-tag">RAG Integration</span>
-                                <span class="feature-tag">Context Enrichment</span>
-                            </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Targets</span>
+                            <span class="text-white/70 font-mono">13</span>
                         </div>
-
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">rag-backend-api</span>
-                                <span class="component-version">1.0.0</span>
-                            </div>
-                            <p class="component-desc">
-                                Retrieval-Augmented Generation for threat intelligence.
-                                Vector search over security datasets, natural language queries, and automated report generation.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">Vector Search</span>
-                                <span class="feature-tag">LLM Integration</span>
-                                <span class="feature-tag">Threat Intel</span>
-                                <span class="feature-tag">Report Generation</span>
-                            </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Ports</span>
+                            <span class="text-white/70 font-mono">9090, 3000, 9093</span>
                         </div>
+                    </div>
+                </div>
 
-                        <div class="component">
-                            <div class="component-header">
-                                <span class="component-name">ollama-server</span>
-                                <span class="component-version">latest</span>
-                            </div>
-                            <p class="component-desc">
-                                Local LLM inference server. Runs models like Llama 3, Mistral, and Qwen
-                                for natural language understanding, alert summarization, and chatbot interfaces.
-                            </p>
-                            <div class="component-features">
-                                <span class="feature-tag">LLM Inference</span>
-                                <span class="feature-tag">Multiple Models</span>
-                                <span class="feature-tag">API Compatible</span>
-                                <span class="feature-tag">GPU Support</span>
-                            </div>
+                <!-- Network Analysis -->
+                <div class="reveal-scale glass-card rounded-2xl p-8 group">
+                    <div class="h-14 w-14 rounded-2xl bg-pink-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <i data-lucide="network" class="h-7 w-7 text-pink-400"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-3">Network Analysis</h3>
+                    <p class="text-white/50 text-sm leading-relaxed mb-6">
+                        Suricata IDS/IPS and Zeek passive analysis. Deep packet inspection,
+                        protocol analysis, and threat intelligence integration.
+                    </p>
+                    <div class="space-y-3 pt-6 border-t border-white/5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Components</span>
+                            <span class="text-white/70 font-mono">3</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Mode</span>
+                            <span class="text-white/70 font-mono">IDS/IPS</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Requirement</span>
+                            <span class="text-white/70 font-mono">Linux Host</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Network Mesh -->
+                <div class="reveal-scale glass-card rounded-2xl p-8 group">
+                    <div class="h-14 w-14 rounded-2xl bg-cyan-500/10 flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-500">
+                        <i data-lucide="git-branch" class="h-7 w-7 text-cyan-400"></i>
+                    </div>
+                    <h3 class="font-display text-xl font-semibold mb-3">Network Mesh</h3>
+                    <p class="text-white/50 text-sm leading-relaxed mb-6">
+                        Segmented Docker networks with frontend/backend separation.
+                        Service discovery, load balancing, and encrypted inter-service communication.
+                    </p>
+                    <div class="space-y-3 pt-6 border-t border-white/5">
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Networks</span>
+                            <span class="text-white/70 font-mono">6</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Subnets</span>
+                            <span class="text-white/70 font-mono">172.20-30.x</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="text-white/40">Isolation</span>
+                            <span class="text-white/70 font-mono">Backend/Frontend</span>
                         </div>
                     </div>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- DATA FLOW -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">THREAT DETECTION PIPELINE</p>
-                <h2 class="section-title">Real-Time Data Flow</h2>
-                <p class="section-description">
+    <!-- Section Divider -->
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         DATA FLOW
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="relative py-32 md:py-40 overflow-hidden z-10">
+        <div class="absolute inset-0 dot-pattern opacity-40"></div>
+
+        <!-- Accent Glows -->
+        <div class="absolute top-1/4 left-[10%] w-[500px] h-[500px] bg-electric/5 rounded-full blur-[150px]"></div>
+        <div class="absolute bottom-1/4 right-[10%] w-[400px] h-[400px] bg-royal/5 rounded-full blur-[120px]"></div>
+
+        <div class="relative z-10 max-w-7xl mx-auto px-6 md:px-12">
+            <!-- Section Header -->
+            <div class="text-center mb-20">
+                <div class="reveal-up inline-flex items-center gap-4 mb-6">
+                    <div class="h-px w-12 bg-white/20"></div>
+                    <span class="text-xs font-mono text-electric tracking-[0.2em] uppercase">Threat Detection Pipeline</span>
+                    <div class="h-px w-12 bg-white/20"></div>
+                </div>
+                <h2 class="reveal-up font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+                    Real-Time <span class="gradient-text">Data Flow</span>
+                </h2>
+                <p class="reveal-up text-lg text-white/40 max-w-3xl mx-auto">
                     End-to-end threat detection and automated response. From network traffic capture
                     to ML-powered analysis to orchestrated incident response.
                 </p>
             </div>
 
-            <div class="flow-diagram">
-                <div class="flow-stages">
-                    <div class="flow-stage">
-                        <div class="flow-number">1</div>
-                        <h4 class="flow-title">Ingestion</h4>
-                        <p class="flow-desc">
-                            Network traffic captured via Suricata/Zeek.
-                            Logs forwarded to Wazuh Manager via Filebeat.
-                        </p>
+            <!-- Flow Diagram -->
+            <div class="reveal-up glass-strong rounded-3xl p-8 md:p-12 mb-16">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-6">
+                    <!-- Stage 1 -->
+                    <div class="text-center flow-connector">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-electric to-electric-dim flex items-center justify-center text-xl font-bold">1</div>
+                        <h4 class="font-display font-semibold mb-2 text-sm">Ingestion</h4>
+                        <p class="text-xs text-white/40 leading-relaxed">Network traffic captured via Suricata/Zeek</p>
                     </div>
 
-                    <div class="flow-stage">
-                        <div class="flow-number">2</div>
-                        <h4 class="flow-title">Correlation</h4>
-                        <p class="flow-desc">
-                            Wazuh applies correlation rules,
-                            enriches events, and generates alerts.
-                        </p>
+                    <!-- Stage 2 -->
+                    <div class="text-center flow-connector">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-royal to-royal-dim flex items-center justify-center text-xl font-bold">2</div>
+                        <h4 class="font-display font-semibold mb-2 text-sm">Correlation</h4>
+                        <p class="text-xs text-white/40 leading-relaxed">Wazuh applies rules, enriches events</p>
                     </div>
 
-                    <div class="flow-stage">
-                        <div class="flow-number">3</div>
-                        <h4 class="flow-title">ML Analysis</h4>
-                        <p class="flow-desc">
-                            Alert features extracted and sent to ML Inference API
-                            for prediction (99.28% accuracy).
-                        </p>
+                    <!-- Stage 3 -->
+                    <div class="text-center flow-connector">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-amber to-amber-dim flex items-center justify-center text-xl font-bold text-black">3</div>
+                        <h4 class="font-display font-semibold mb-2 text-sm">ML Analysis</h4>
+                        <p class="text-xs text-white/40 leading-relaxed">99.28% accuracy prediction</p>
                     </div>
 
-                    <div class="flow-stage">
-                        <div class="flow-number">4</div>
-                        <h4 class="flow-title">Triage</h4>
-                        <p class="flow-desc">
-                            Alert Triage Service ranks alerts,
-                            queries RAG for context, and prioritizes response.
-                        </p>
+                    <!-- Stage 4 -->
+                    <div class="text-center flow-connector">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-emerald-500 to-emerald-600 flex items-center justify-center text-xl font-bold">4</div>
+                        <h4 class="font-display font-semibold mb-2 text-sm">Triage</h4>
+                        <p class="text-xs text-white/40 leading-relaxed">Alert ranking with RAG context</p>
                     </div>
 
-                    <div class="flow-stage">
-                        <div class="flow-number">5</div>
-                        <h4 class="flow-title">Case Creation</h4>
-                        <p class="flow-desc">
-                            High-priority alerts trigger automatic
-                            case creation in TheHive via webhook.
-                        </p>
+                    <!-- Stage 5 -->
+                    <div class="text-center flow-connector">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-pink-500 to-pink-600 flex items-center justify-center text-xl font-bold">5</div>
+                        <h4 class="font-display font-semibold mb-2 text-sm">Case Creation</h4>
+                        <p class="text-xs text-white/40 leading-relaxed">TheHive automatic cases</p>
                     </div>
 
-                    <div class="flow-stage">
-                        <div class="flow-number">6</div>
-                        <h4 class="flow-title">Response</h4>
-                        <p class="flow-desc">
-                            Shuffle executes automated playbooks:
-                            isolation, blocking, notification, reporting.
-                        </p>
+                    <!-- Stage 6 -->
+                    <div class="text-center">
+                        <div class="w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-br from-cyan-500 to-cyan-600 flex items-center justify-center text-xl font-bold">6</div>
+                        <h4 class="font-display font-semibold mb-2 text-sm">Response</h4>
+                        <p class="text-xs text-white/40 leading-relaxed">Shuffle executes playbooks</p>
                     </div>
                 </div>
             </div>
 
-            <div class="metrics-showcase">
-                <h3 style="text-align: center; font-size: 1.75rem; font-weight: 500; margin-bottom: 1rem; color: var(--gray-100);">
-                    Pipeline Performance Metrics
-                </h3>
-                <p style="text-align: center; color: var(--gray-400); margin-bottom: 2rem; max-width: 700px; margin-left: auto; margin-right: auto;">
-                    Real-world performance characteristics measured in production environment
+            <!-- Performance Metrics -->
+            <div class="reveal-up animated-border rounded-3xl p-10 md:p-14">
+                <h3 class="font-display text-2xl font-semibold text-center mb-10">Pipeline Performance</h3>
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-8">
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto mb-4 rounded-xl bg-electric/10 flex items-center justify-center">
+                            <i data-lucide="zap" class="h-6 w-6 text-electric"></i>
+                        </div>
+                        <div class="font-display text-3xl font-bold text-electric stat-glow mb-2">&lt;100ms</div>
+                        <div class="text-sm text-white/40">ML Inference</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto mb-4 rounded-xl bg-royal/10 flex items-center justify-center">
+                            <i data-lucide="target" class="h-6 w-6 text-royal"></i>
+                        </div>
+                        <div class="font-display text-3xl font-bold text-royal stat-glow mb-2">99.28%</div>
+                        <div class="text-sm text-white/40">Accuracy</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto mb-4 rounded-xl bg-amber/10 flex items-center justify-center">
+                            <i data-lucide="percent" class="h-6 w-6 text-amber"></i>
+                        </div>
+                        <div class="font-display text-3xl font-bold text-amber stat-glow mb-2">0.25%</div>
+                        <div class="text-sm text-white/40">False Positives</div>
+                    </div>
+                    <div class="text-center">
+                        <div class="h-12 w-12 mx-auto mb-4 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+                            <i data-lucide="database" class="h-6 w-6 text-emerald-400"></i>
+                        </div>
+                        <div class="font-display text-3xl font-bold text-emerald-400 stat-glow mb-2">2.8M+</div>
+                        <div class="text-sm text-white/40">Events Processed</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Divider -->
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         COMPONENT BREAKDOWN
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="relative py-32 md:py-40 overflow-hidden z-10">
+        <div class="relative z-10 max-w-7xl mx-auto px-6 md:px-12">
+            <!-- Section Header -->
+            <div class="text-center mb-20">
+                <div class="reveal-up inline-flex items-center gap-4 mb-6">
+                    <div class="h-px w-12 bg-white/20"></div>
+                    <span class="text-xs font-mono text-electric tracking-[0.2em] uppercase">Detailed Breakdown</span>
+                    <div class="h-px w-12 bg-white/20"></div>
+                </div>
+                <h2 class="reveal-up font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+                    Containerized <span class="gradient-text">Microservices</span>
+                </h2>
+                <p class="reveal-up text-lg text-white/40 max-w-3xl mx-auto">
+                    Enterprise-grade components with health checks, resource limits,
+                    and production-ready configurations.
                 </p>
-                <div class="metrics-grid">
-                    <div class="metric">
-                        <div class="metric-icon">⚡</div>
-                        <div class="metric-value">&lt;100ms</div>
-                        <div class="metric-label">ML Inference Time</div>
+            </div>
+
+            <!-- SIEM Stack -->
+            <div class="reveal-up glass-strong rounded-3xl p-8 md:p-10 mb-8">
+                <div class="flex items-center gap-4 mb-8 pb-6 border-b border-white/5">
+                    <div class="h-14 w-14 rounded-2xl bg-electric/10 flex items-center justify-center">
+                        <i data-lucide="shield" class="h-7 w-7 text-electric"></i>
                     </div>
-                    <div class="metric">
-                        <div class="metric-icon">🎯</div>
-                        <div class="metric-value">99.28%</div>
-                        <div class="metric-label">Detection Accuracy</div>
+                    <div>
+                        <h3 class="font-display text-2xl font-semibold">SIEM Stack</h3>
+                        <p class="text-white/40 text-sm">Security Information and Event Management</p>
                     </div>
-                    <div class="metric">
-                        <div class="metric-icon">📊</div>
-                        <div class="metric-value">0.25%</div>
-                        <div class="metric-label">False Positive Rate</div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="component-card glass rounded-xl p-6 border border-white/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                            <span class="font-mono text-lg font-semibold text-white/90">wazuh-manager</span>
+                            <span class="px-3 py-1 rounded-lg bg-electric/15 border border-electric/30 text-electric text-xs font-mono">4.8.2</span>
+                        </div>
+                        <p class="text-white/50 text-sm mb-4 leading-relaxed">
+                            Core SIEM engine. Processes security events, runs correlation rules,
+                            generates alerts, and manages agent fleet.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Log Analysis</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Rule Correlation</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Agent Management</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">API Gateway</span>
+                        </div>
                     </div>
-                    <div class="metric">
-                        <div class="metric-icon">🔄</div>
-                        <div class="metric-value">2.8M+</div>
-                        <div class="metric-label">Events Processed</div>
+
+                    <div class="component-card glass rounded-xl p-6 border border-white/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                            <span class="font-mono text-lg font-semibold text-white/90">wazuh-indexer</span>
+                            <span class="px-3 py-1 rounded-lg bg-electric/15 border border-electric/30 text-electric text-xs font-mono">4.8.2</span>
+                        </div>
+                        <p class="text-white/50 text-sm mb-4 leading-relaxed">
+                            OpenSearch-based data store. Indexes security events, provides full-text search,
+                            and powers the dashboard with real-time queries.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Data Indexing</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Full-Text Search</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Cluster Management</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">RESTful API</span>
+                        </div>
+                    </div>
+
+                    <div class="component-card glass rounded-xl p-6 border border-white/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                            <span class="font-mono text-lg font-semibold text-white/90">wazuh-dashboard</span>
+                            <span class="px-3 py-1 rounded-lg bg-electric/15 border border-electric/30 text-electric text-xs font-mono">4.8.2</span>
+                        </div>
+                        <p class="text-white/50 text-sm mb-4 leading-relaxed">
+                            Web UI for visualization and analysis. Real-time dashboards, alert investigation,
+                            compliance reporting, and system configuration.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Visualization</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Alert Investigation</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Compliance</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">HTTPS/SSL</span>
+                        </div>
                     </div>
                 </div>
             </div>
-        </section>
 
-        <!-- INTEGRATION POINTS -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">SYSTEM INTEGRATIONS</p>
-                <h2 class="section-title">Integration Architecture</h2>
-                <p class="section-description">
+            <!-- AI Services Stack -->
+            <div class="reveal-up glass-strong rounded-3xl p-8 md:p-10 mb-8">
+                <div class="flex items-center gap-4 mb-8 pb-6 border-b border-white/5">
+                    <div class="h-14 w-14 rounded-2xl bg-amber/10 flex items-center justify-center">
+                        <i data-lucide="brain" class="h-7 w-7 text-amber"></i>
+                    </div>
+                    <div>
+                        <h3 class="font-display text-2xl font-semibold">AI Services Stack</h3>
+                        <p class="text-white/40 text-sm">Machine Learning and Threat Intelligence</p>
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="component-card glass rounded-xl p-6 border border-white/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                            <span class="font-mono text-lg font-semibold text-white/90">ml-inference-api</span>
+                            <span class="px-3 py-1 rounded-lg bg-amber/15 border border-amber/30 text-amber text-xs font-mono">1.0.0</span>
+                        </div>
+                        <p class="text-white/50 text-sm mb-4 leading-relaxed">
+                            Real-time ML prediction service. Ensemble of Random Forest, XGBoost, and Decision Tree
+                            models achieving 99.28% accuracy on CICIDS2017 dataset.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Ensemble Models</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs">99.28% Accuracy</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">FastAPI</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">&lt;100ms Latency</span>
+                        </div>
+                    </div>
+
+                    <div class="component-card glass rounded-xl p-6 border border-white/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                            <span class="font-mono text-lg font-semibold text-white/90">alert-triage-service</span>
+                            <span class="px-3 py-1 rounded-lg bg-amber/15 border border-amber/30 text-amber text-xs font-mono">1.0.0</span>
+                        </div>
+                        <p class="text-white/50 text-sm mb-4 leading-relaxed">
+                            AI-powered alert prioritization. Uses ML inference and RAG to rank alerts,
+                            reduce false positives, and provide context-aware threat intelligence.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Alert Ranking</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">ML Scoring</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">RAG Integration</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Context Enrichment</span>
+                        </div>
+                    </div>
+
+                    <div class="component-card glass rounded-xl p-6 border border-white/5">
+                        <div class="flex flex-wrap items-start justify-between gap-4 mb-4">
+                            <span class="font-mono text-lg font-semibold text-white/90">rag-backend-api</span>
+                            <span class="px-3 py-1 rounded-lg bg-amber/15 border border-amber/30 text-amber text-xs font-mono">1.0.0</span>
+                        </div>
+                        <p class="text-white/50 text-sm mb-4 leading-relaxed">
+                            Retrieval-Augmented Generation for threat intelligence.
+                            Vector search over security datasets and automated report generation.
+                        </p>
+                        <div class="flex flex-wrap gap-2">
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Vector Search</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">LLM Integration</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Threat Intel</span>
+                            <span class="px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs">Report Generation</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Section Divider -->
+    <div class="section-divider"></div>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         INTEGRATIONS
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="relative py-32 md:py-40 overflow-hidden z-10">
+        <div class="absolute inset-0 grid-pattern opacity-40"></div>
+
+        <div class="relative z-10 max-w-7xl mx-auto px-6 md:px-12">
+            <!-- Section Header -->
+            <div class="text-center mb-20">
+                <div class="reveal-up inline-flex items-center gap-4 mb-6">
+                    <div class="h-px w-12 bg-white/20"></div>
+                    <span class="text-xs font-mono text-electric tracking-[0.2em] uppercase">System Integrations</span>
+                    <div class="h-px w-12 bg-white/20"></div>
+                </div>
+                <h2 class="reveal-up font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+                    Integration <span class="gradient-text">Architecture</span>
+                </h2>
+                <p class="reveal-up text-lg text-white/40 max-w-3xl mx-auto">
                     Webhook-based event-driven architecture. RESTful APIs, service mesh communication,
                     and asynchronous message passing for loosely coupled services.
                 </p>
             </div>
 
-            <div class="integration-grid">
-                <div class="integration-card">
-                    <div class="integration-badge">SIEM → SOAR</div>
-                    <h4 class="integration-title">Wazuh → TheHive</h4>
-                    <div class="integration-path">POST /api/alert/create</div>
-                    <p style="color: var(--gray-400); font-size: 0.95rem; line-height: 1.6;">
+            <!-- Integration Grid -->
+            <div class="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div class="reveal-scale glass-card rounded-2xl p-6">
+                    <span class="inline-block px-3 py-1 rounded-lg bg-electric/15 border border-electric/30 text-electric text-xs font-medium mb-4">SIEM to SOAR</span>
+                    <h4 class="font-display text-lg font-semibold mb-3">Wazuh to TheHive</h4>
+                    <div class="font-mono text-sm text-white/40 bg-black/40 rounded-lg px-4 py-3 mb-4">POST /api/alert/create</div>
+                    <p class="text-white/50 text-sm leading-relaxed">
                         Wazuh alerts automatically create cases in TheHive.
                         Alert metadata, severity, and observables extracted for investigation.
                     </p>
                 </div>
 
-                <div class="integration-card">
-                    <div class="integration-badge">SOAR → AUTOMATION</div>
-                    <h4 class="integration-title">TheHive → Shuffle</h4>
-                    <div class="integration-path">POST /api/v1/hooks/{workflow_id}</div>
-                    <p style="color: var(--gray-400); font-size: 0.95rem; line-height: 1.6;">
+                <div class="reveal-scale glass-card rounded-2xl p-6">
+                    <span class="inline-block px-3 py-1 rounded-lg bg-royal/15 border border-royal/30 text-royal text-xs font-medium mb-4">SOAR to AUTOMATION</span>
+                    <h4 class="font-display text-lg font-semibold mb-3">TheHive to Shuffle</h4>
+                    <div class="font-mono text-sm text-white/40 bg-black/40 rounded-lg px-4 py-3 mb-4">POST /api/v1/hooks/{id}</div>
+                    <p class="text-white/50 text-sm leading-relaxed">
                         Case updates trigger Shuffle workflows.
-                        Automated playbooks execute response actions based on case status and severity.
+                        Automated playbooks execute response actions based on severity.
                     </p>
                 </div>
 
-                <div class="integration-card">
-                    <div class="integration-badge">AI → SIEM</div>
-                    <h4 class="integration-title">ML Inference → Wazuh</h4>
-                    <div class="integration-path">POST /predict</div>
-                    <p style="color: var(--gray-400); font-size: 0.95rem; line-height: 1.6;">
+                <div class="reveal-scale glass-card rounded-2xl p-6">
+                    <span class="inline-block px-3 py-1 rounded-lg bg-amber/15 border border-amber/30 text-amber text-xs font-medium mb-4">AI to SIEM</span>
+                    <h4 class="font-display text-lg font-semibold mb-3">ML Inference to Wazuh</h4>
+                    <div class="font-mono text-sm text-white/40 bg-black/40 rounded-lg px-4 py-3 mb-4">POST /predict</div>
+                    <p class="text-white/50 text-sm leading-relaxed">
                         Alert features sent to ML API for real-time prediction.
                         Classification results enriched back into Wazuh alerts.
                     </p>
                 </div>
 
-                <div class="integration-card">
-                    <div class="integration-badge">MONITORING → ALL</div>
-                    <h4 class="integration-title">Prometheus Scraping</h4>
-                    <div class="integration-path">GET /metrics</div>
-                    <p style="color: var(--gray-400); font-size: 0.95rem; line-height: 1.6;">
+                <div class="reveal-scale glass-card rounded-2xl p-6">
+                    <span class="inline-block px-3 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-medium mb-4">MONITORING to ALL</span>
+                    <h4 class="font-display text-lg font-semibold mb-3">Prometheus Scraping</h4>
+                    <div class="font-mono text-sm text-white/40 bg-black/40 rounded-lg px-4 py-3 mb-4">GET /metrics</div>
+                    <p class="text-white/50 text-sm leading-relaxed">
                         13 scrape targets across all stacks.
-                        Service health, resource utilization, and custom application metrics.
+                        Service health, resource utilization, and custom metrics.
                     </p>
                 </div>
 
-                <div class="integration-card">
-                    <div class="integration-badge">ANALYSIS → ENRICHMENT</div>
-                    <h4 class="integration-title">Alert Triage → RAG</h4>
-                    <div class="integration-path">POST /search</div>
-                    <p style="color: var(--gray-400); font-size: 0.95rem; line-height: 1.6;">
+                <div class="reveal-scale glass-card rounded-2xl p-6">
+                    <span class="inline-block px-3 py-1 rounded-lg bg-pink-500/15 border border-pink-500/30 text-pink-400 text-xs font-medium mb-4">ANALYSIS to ENRICHMENT</span>
+                    <h4 class="font-display text-lg font-semibold mb-3">Alert Triage to RAG</h4>
+                    <div class="font-mono text-sm text-white/40 bg-black/40 rounded-lg px-4 py-3 mb-4">POST /search</div>
+                    <p class="text-white/50 text-sm leading-relaxed">
                         Vector search over threat intelligence databases.
-                        Contextual enrichment for alerts with historical attack patterns.
+                        Contextual enrichment with historical attack patterns.
                     </p>
                 </div>
 
-                <div class="integration-card">
-                    <div class="integration-badge">ALERTING → NOTIFICATION</div>
-                    <h4 class="integration-title">AlertManager → Slack</h4>
-                    <div class="integration-path">POST /services/{webhook_id}</div>
-                    <p style="color: var(--gray-400); font-size: 0.95rem; line-height: 1.6;">
+                <div class="reveal-scale glass-card rounded-2xl p-6">
+                    <span class="inline-block px-3 py-1 rounded-lg bg-cyan-500/15 border border-cyan-500/30 text-cyan-400 text-xs font-medium mb-4">ALERTING to NOTIFICATION</span>
+                    <h4 class="font-display text-lg font-semibold mb-3">AlertManager to Slack</h4>
+                    <div class="font-mono text-sm text-white/40 bg-black/40 rounded-lg px-4 py-3 mb-4">POST /services/{webhook}</div>
+                    <p class="text-white/50 text-sm leading-relaxed">
                         Critical infrastructure alerts routed to Slack.
                         Email and webhook notifications for service degradation.
                     </p>
                 </div>
             </div>
-        </section>
+        </div>
+    </section>
 
-        <!-- NIST FRAMEWORK ALIGNMENT -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">COMPLIANCE & STANDARDS</p>
-                <h2 class="section-title">NIST Cybersecurity Framework Alignment</h2>
-                <p class="section-description">
-                    Architecture designed to support NIST CSF functions: Identify, Protect, Detect, Respond, Recover.
-                    Comprehensive coverage across all five pillars with measurable outcomes.
-                </p>
-            </div>
+    <!-- Section Divider -->
+    <div class="section-divider"></div>
 
-            <div class="architecture-grid">
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🔍</span>
-                        <h3 class="arch-title">Identify</h3>
-                        <p class="arch-description">
-                            Asset discovery via Wazuh agents, network topology mapping with Zeek,
-                            and comprehensive inventory in CMDB integration.
-                        </p>
-                    </div>
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         DEPLOYMENT
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <section class="relative py-32 md:py-40 overflow-hidden z-10">
+        <div class="relative z-10 max-w-7xl mx-auto px-6 md:px-12">
+            <!-- Section Header -->
+            <div class="text-center mb-20">
+                <div class="reveal-up inline-flex items-center gap-4 mb-6">
+                    <div class="h-px w-12 bg-white/20"></div>
+                    <span class="text-xs font-mono text-electric tracking-[0.2em] uppercase">Production Readiness</span>
+                    <div class="h-px w-12 bg-white/20"></div>
                 </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🛡️</span>
-                        <h3 class="arch-title">Protect</h3>
-                        <p class="arch-description">
-                            Network segmentation, encrypted communications, access control policies,
-                            and security hardening across all containerized services.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">👁️</span>
-                        <h3 class="arch-title">Detect</h3>
-                        <p class="arch-description">
-                            Real-time threat detection via Wazuh SIEM, Suricata IDS,
-                            and ML-powered anomaly detection with 99.28% accuracy.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">⚡</span>
-                        <h3 class="arch-title">Respond</h3>
-                        <p class="arch-description">
-                            Automated incident response via Shuffle workflows, case management in TheHive,
-                            and orchestrated containment actions.
-                        </p>
-                    </div>
-                </div>
-
-                <div class="arch-card">
-                    <div class="arch-card-content">
-                        <span class="arch-icon">🔄</span>
-                        <h3 class="arch-title">Recover</h3>
-                        <p class="arch-description">
-                            Automated backup/restore procedures, disaster recovery playbooks,
-                            and resilience testing for all critical services.
-                        </p>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- PRODUCTION DEPLOYMENT -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">PRODUCTION READINESS</p>
-                <h2 class="section-title">Deployment Considerations</h2>
-                <p class="section-description">
+                <h2 class="reveal-up font-display text-3xl md:text-4xl lg:text-5xl font-bold tracking-tight mb-6">
+                    Deployment <span class="gradient-text">Specifications</span>
+                </h2>
+                <p class="reveal-up text-lg text-white/40 max-w-3xl mx-auto">
                     Enterprise deployment checklist. Security hardening, performance optimization,
-                    high availability configuration, and operational best practices.
+                    and operational best practices.
                 </p>
             </div>
 
-            <div class="considerations-grid">
-                <div class="consideration-card">
-                    <div class="consideration-icon">🔒</div>
-                    <h4 class="consideration-title">Security Hardening</h4>
-                    <ul class="consideration-list">
-                        <li>Change all default passwords and API keys</li>
-                        <li>Generate production SSL/TLS certificates</li>
-                        <li>Configure firewall rules and network ACLs</li>
-                        <li>Enable API authentication and rate limiting</li>
-                        <li>Implement secrets management (Vault)</li>
-                        <li>Regular security audits and penetration testing</li>
-                    </ul>
-                </div>
+            <!-- Requirements Code Block -->
+            <div class="reveal-up mb-12">
+                <div class="code-block">
+<pre><span class="comment"># MINIMUM SYSTEM REQUIREMENTS</span>
+CPU:      <span class="number">8</span> cores (<span class="number">16</span> recommended)
+Memory:   <span class="number">16</span>GB RAM (<span class="number">32</span>GB recommended)
+Disk:     <span class="number">100</span>GB SSD (<span class="number">500</span>GB recommended)
+Network:  <span class="number">1</span> Gbps
 
-                <div class="consideration-card">
-                    <div class="consideration-icon">📈</div>
-                    <h4 class="consideration-title">Scalability</h4>
-                    <ul class="consideration-list">
-                        <li>Horizontal scaling for Wazuh Indexer cluster</li>
-                        <li>Load balancing for API endpoints</li>
-                        <li>Cassandra replication for HA</li>
-                        <li>Redis cluster for caching layer</li>
-                        <li>Auto-scaling based on metrics</li>
-                        <li>CDN integration for dashboard assets</li>
-                    </ul>
-                </div>
+<span class="comment"># SOFTWARE DEPENDENCIES</span>
+Docker:   <span class="string">24.0.0+</span>
+Compose:  <span class="string">2.20.0+</span>
+OS:       <span class="string">Linux (Ubuntu 22.04 LTS recommended)</span>
+          <span class="string">Windows (WSL2 for SIEM only)</span>
 
-                <div class="consideration-card">
-                    <div class="consideration-icon">💾</div>
-                    <h4 class="consideration-title">Data Management</h4>
-                    <ul class="consideration-list">
-                        <li>Automated backup schedules (daily/weekly)</li>
-                        <li>Retention policies for logs and alerts</li>
-                        <li>Cold storage for historical data</li>
-                        <li>Disaster recovery procedures</li>
-                        <li>Data encryption at rest and in transit</li>
-                        <li>GDPR/compliance data handling</li>
-                    </ul>
-                </div>
-
-                <div class="consideration-card">
-                    <div class="consideration-icon">⚙️</div>
-                    <h4 class="consideration-title">Operations</h4>
-                    <ul class="consideration-list">
-                        <li>CI/CD pipelines for automated deployment</li>
-                        <li>Infrastructure as Code (Terraform/Ansible)</li>
-                        <li>Automated health checks and self-healing</li>
-                        <li>Runbooks for common incidents</li>
-                        <li>On-call rotation and alerting procedures</li>
-                        <li>Performance monitoring and optimization</li>
-                    </ul>
-                </div>
-
-                <div class="consideration-card">
-                    <div class="consideration-icon">🌐</div>
-                    <h4 class="consideration-title">Network Architecture</h4>
-                    <ul class="consideration-list">
-                        <li>Reverse proxy (Nginx/Traefik) for HTTPS</li>
-                        <li>Network segmentation and microsegmentation</li>
-                        <li>VPN/bastion host for remote access</li>
-                        <li>DDoS protection and rate limiting</li>
-                        <li>Service mesh for inter-service communication</li>
-                        <li>Network monitoring and traffic analysis</li>
-                    </ul>
-                </div>
-
-                <div class="consideration-card">
-                    <div class="consideration-icon">🧪</div>
-                    <h4 class="consideration-title">Testing & QA</h4>
-                    <ul class="consideration-list">
-                        <li>Integration test suite for all services</li>
-                        <li>Load testing and performance benchmarking</li>
-                        <li>Chaos engineering for resilience testing</li>
-                        <li>Security scanning (SAST/DAST)</li>
-                        <li>Regression testing for ML models</li>
-                        <li>Canary deployments and blue-green releases</li>
-                    </ul>
+<span class="comment"># NETWORK REQUIREMENTS</span>
+Subnets:  <span class="number">6</span> Docker networks (<span class="string">172.20-30.0.0/24</span>)
+Ports:    <span class="number">30+</span> exposed ports
+DNS:      Internal DNS resolution for service discovery</pre>
                 </div>
             </div>
-        </section>
 
-        <!-- TECHNICAL SPECIFICATIONS -->
-        <section class="section fade-in">
-            <div class="section-header">
-                <p class="section-label">SYSTEM REQUIREMENTS</p>
-                <h2 class="section-title">Technical Specifications</h2>
-                <p class="section-description">
-                    Hardware and software requirements for production deployment.
-                    Resource allocation, dependency versions, and compatibility matrix.
-                </p>
-            </div>
-
-            <div class="code-block">
-<pre># MINIMUM SYSTEM REQUIREMENTS
-CPU:      8 cores (16 recommended)
-Memory:   16GB RAM (32GB recommended)
-Disk:     100GB SSD (500GB recommended)
-Network:  1 Gbps
-
-# SOFTWARE DEPENDENCIES
-Docker:   24.0.0+
-Compose:  2.20.0+
-OS:       Linux (Ubuntu 22.04 LTS recommended)
-          Windows (WSL2 for SIEM only)
-
-# NETWORK REQUIREMENTS
-Subnets:  6 Docker networks (172.20-30.0.0/24)
-Ports:    30+ exposed ports (see network topology)
-DNS:      Internal DNS resolution for service discovery
-
-# STORAGE VOLUMES
-wazuh-indexer-data:     50GB (expandable)
-cassandra-data:         30GB
-minio-data:             20GB
-prometheus-data:        10GB
-grafana-data:           5GB
-Total Persistent:       115GB+</pre>
-            </div>
-
-            <div style="margin-top: 3rem;">
-                <h3 style="font-size: 1.75rem; font-weight: 500; margin-bottom: 1.5rem; color: var(--gray-100);">
+            <!-- Deployment Sequence -->
+            <div class="reveal-up glass-strong rounded-3xl p-8 md:p-10">
+                <h3 class="font-display text-xl font-semibold mb-6 flex items-center gap-3">
+                    <i data-lucide="terminal" class="h-5 w-5 text-electric"></i>
                     Docker Compose Orchestration
                 </h3>
-                <p style="color: var(--gray-400); margin-bottom: 1.5rem; line-height: 1.7;">
+                <p class="text-white/50 mb-6">
                     Modular deployment across 5 independent compose files.
                     Deploy incrementally or all-at-once for complete AI-SOC infrastructure.
                 </p>
                 <div class="code-block">
-<pre># DEPLOYMENT SEQUENCE
-1. docker compose -f phase1-siem-core-windows.yml up -d
-2. docker compose -f phase2-soar-stack.yml up -d
-3. docker compose -f monitoring-stack.yml up -d
-4. docker compose -f network-analysis-stack.yml up -d  # Linux only
-5. docker compose -f ai-services.yml up -d
+<pre><span class="comment"># DEPLOYMENT SEQUENCE</span>
+<span class="keyword">1.</span> docker compose -f <span class="string">phase1-siem-core-windows.yml</span> up -d
+<span class="keyword">2.</span> docker compose -f <span class="string">phase2-soar-stack.yml</span> up -d
+<span class="keyword">3.</span> docker compose -f <span class="string">monitoring-stack.yml</span> up -d
+<span class="keyword">4.</span> docker compose -f <span class="string">network-analysis-stack.yml</span> up -d  <span class="comment"># Linux only</span>
+<span class="keyword">5.</span> docker compose -f <span class="string">ai-services.yml</span> up -d
 
-# HEALTH CHECK
-docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+<span class="comment"># HEALTH CHECK</span>
+docker ps --format <span class="string">"table {{.Names}}\t{{.Status}}\t{{.Ports}}"</span>
 
-# VERIFICATION
-curl -k https://localhost:443          # Wazuh Dashboard
-curl http://localhost:3000             # Grafana
-curl http://localhost:8500/health      # ML Inference API</pre>
+<span class="comment"># VERIFICATION</span>
+curl -k https://localhost:<span class="number">443</span>          <span class="comment"># Wazuh Dashboard</span>
+curl http://localhost:<span class="number">3000</span>             <span class="comment"># Grafana</span>
+curl http://localhost:<span class="number">8500</span>/health      <span class="comment"># ML Inference API</span></pre>
                 </div>
             </div>
-        </section>
-    </div>
-
-    <footer class="footer">
-        <div class="footer-links">
-            <a href="../portal-landing.html">← Back to Research Portal</a>
-            <a href="https://github.com/zhadyz/AI_SOC">GitHub Repository</a>
-            <a href="../ai-soc/ml-accuracy.html">ML Accuracy Analysis</a>
-            <a href="../ai-soc/performance.html">Performance Benchmarks</a>
-            <a href="mailto:abdul.bari8019@coyote.csusb.edu">Contact</a>
         </div>
-        <p class="copyright">
-            © 2025 OnyxLab Research. Open source under Apache 2.0 License.
-        </p>
+    </section>
+
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         FOOTER
+         ═══════════════════════════════════════════════════════════════════════════ -->
+    <footer class="relative z-10 border-t border-white/5 bg-onyx-950/80 backdrop-blur-xl">
+        <div class="max-w-7xl mx-auto px-6 md:px-12 py-12">
+            <div class="flex flex-col md:flex-row items-center justify-between gap-8">
+                <a href="../index.html" class="flex items-center gap-3 group">
+                    <img src="../assets/logo.png" alt="OnyxLab" class="h-7 w-7 object-contain">
+                    <span class="font-display text-base font-semibold tracking-tight">ONYXLAB</span>
+                </a>
+
+                <div class="flex flex-wrap items-center justify-center gap-8 text-sm text-white/30">
+                    <a href="../index.html" class="hover:text-white transition-colors">Back to Research</a>
+                    <a href="https://github.com/zhadyz/AI_SOC" target="_blank" rel="noopener" class="hover:text-white transition-colors">GitHub</a>
+                    <a href="ml-accuracy.html" class="hover:text-white transition-colors">ML Accuracy</a>
+                </div>
+
+                <p class="text-sm text-white/20">
+                    &copy; 2025 OnyxLab Research
+                </p>
+            </div>
+        </div>
     </footer>
 
+    <!-- ═══════════════════════════════════════════════════════════════════════════
+         SCRIPTS
+         ═══════════════════════════════════════════════════════════════════════════ -->
     <script>
-        (function() {
-            'use strict';
+        // Initialize Lucide
+        lucide.createIcons();
 
-            // Scroll-triggered animations
-            function initScrollAnimations() {
-                const observerOptions = {
-                    threshold: 0.1,
-                    rootMargin: '0px 0px -100px 0px'
-                };
+        // ══════════════════════════════════════════════════════════════════════════
+        // PARTICLE SYSTEM (Simplified for documentation page)
+        // ══════════════════════════════════════════════════════════════════════════
+        class ParticleSystem {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.particles = [];
+                this.mouse = { x: null, y: null, radius: 120 };
+                this.resize();
+                this.init();
+                this.animate();
 
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            entry.target.classList.add('fade-in-visible');
-                        }
-                    });
-                }, observerOptions);
-
-                const sections = document.querySelectorAll('.fade-in');
-                sections.forEach(section => observer.observe(section));
-
-                console.log(`[Architecture] Initialized scroll animations for ${sections.length} sections`);
-            }
-
-            // Smooth scroll for anchor links
-            function initSmoothScroll() {
-                const links = document.querySelectorAll('a[href^="#"]');
-                links.forEach(link => {
-                    link.addEventListener('click', (e) => {
-                        const href = link.getAttribute('href');
-                        if (href === '#') return;
-
-                        const target = document.querySelector(href);
-                        if (target) {
-                            e.preventDefault();
-                            target.scrollIntoView({
-                                behavior: 'smooth',
-                                block: 'start'
-                            });
-                        }
-                    });
+                window.addEventListener('resize', () => this.resize());
+                window.addEventListener('mousemove', (e) => {
+                    this.mouse.x = e.clientX;
+                    this.mouse.y = e.clientY;
                 });
             }
 
-            // Metric value animations
-            function animateMetrics() {
-                const metrics = document.querySelectorAll('.metric-value, .meta-value');
+            resize() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+            }
 
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        if (entry.isIntersecting && !entry.target.dataset.animated) {
-                            animateValue(entry.target);
-                            entry.target.dataset.animated = 'true';
-                        }
+            init() {
+                const particleCount = Math.floor((window.innerWidth * window.innerHeight) / 20000);
+                this.particles = [];
+
+                for (let i = 0; i < particleCount; i++) {
+                    this.particles.push({
+                        x: Math.random() * this.canvas.width,
+                        y: Math.random() * this.canvas.height,
+                        size: Math.random() * 1.5 + 0.5,
+                        speedX: (Math.random() - 0.5) * 0.2,
+                        speedY: (Math.random() - 0.5) * 0.2,
+                        opacity: Math.random() * 0.4 + 0.2,
+                        color: Math.random() > 0.7 ? '#3b82f6' : Math.random() > 0.5 ? '#8b5cf6' : '#ffffff'
                     });
-                }, { threshold: 0.5 });
-
-                metrics.forEach(metric => observer.observe(metric));
-            }
-
-            function animateValue(element) {
-                const text = element.textContent;
-
-                // Skip animation for non-numeric values
-                if (text.includes('<') || text.includes('&lt;')) return;
-
-                const hasPercent = text.includes('%');
-                const value = parseFloat(text.replace(/[^\d.]/g, ''));
-
-                if (isNaN(value)) return;
-
-                const duration = 1500;
-                const steps = 60;
-                const increment = value / steps;
-                let current = 0;
-                let step = 0;
-
-                const timer = setInterval(() => {
-                    step++;
-                    current += increment;
-
-                    if (step >= steps) {
-                        current = value;
-                        clearInterval(timer);
-                    }
-
-                    let displayValue;
-                    if (hasPercent) {
-                        displayValue = current.toFixed(2) + '%';
-                    } else if (value >= 1000000) {
-                        displayValue = (current / 1000000).toFixed(1) + 'M+';
-                    } else if (value >= 1000) {
-                        displayValue = (current / 1000).toFixed(1) + 'K+';
-                    } else {
-                        displayValue = Math.round(current).toString();
-                    }
-
-                    element.textContent = displayValue;
-                }, duration / steps);
-            }
-
-            // Initialize
-            function init() {
-                console.log('[Architecture] Initializing page enhancements...');
-
-                if (document.readyState === 'loading') {
-                    document.addEventListener('DOMContentLoaded', init);
-                    return;
                 }
-
-                initScrollAnimations();
-                initSmoothScroll();
-                animateMetrics();
-
-                console.log('[Architecture] All enhancements initialized');
             }
 
-            // Performance logging
-            window.addEventListener('load', () => {
-                if ('performance' in window) {
-                    setTimeout(() => {
-                        const perfData = performance.getEntriesByType('navigation')[0];
-                        if (perfData) {
-                            console.log('[Architecture] Performance:', {
-                                'Load Time': (perfData.loadEventEnd - perfData.fetchStart).toFixed(2) + 'ms'
-                            });
+            drawParticle(p) {
+                this.ctx.beginPath();
+                this.ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                this.ctx.fillStyle = p.color;
+                this.ctx.globalAlpha = p.opacity;
+                this.ctx.fill();
+                this.ctx.globalAlpha = 1;
+            }
+
+            connectParticles() {
+                for (let i = 0; i < this.particles.length; i++) {
+                    for (let j = i + 1; j < this.particles.length; j++) {
+                        const dx = this.particles[i].x - this.particles[j].x;
+                        const dy = this.particles[i].y - this.particles[j].y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < 100) {
+                            this.ctx.beginPath();
+                            this.ctx.strokeStyle = `rgba(59, 130, 246, ${0.08 * (1 - distance / 100)})`;
+                            this.ctx.lineWidth = 0.5;
+                            this.ctx.moveTo(this.particles[i].x, this.particles[i].y);
+                            this.ctx.lineTo(this.particles[j].x, this.particles[j].y);
+                            this.ctx.stroke();
                         }
-                    }, 0);
+                    }
                 }
+            }
+
+            animate() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+                this.particles.forEach(p => {
+                    if (this.mouse.x && this.mouse.y) {
+                        const dx = p.x - this.mouse.x;
+                        const dy = p.y - this.mouse.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+
+                        if (distance < this.mouse.radius) {
+                            const force = (this.mouse.radius - distance) / this.mouse.radius;
+                            p.x += dx * force * 0.015;
+                            p.y += dy * force * 0.015;
+                        }
+                    }
+
+                    p.x += p.speedX;
+                    p.y += p.speedY;
+
+                    if (p.x < 0) p.x = this.canvas.width;
+                    if (p.x > this.canvas.width) p.x = 0;
+                    if (p.y < 0) p.y = this.canvas.height;
+                    if (p.y > this.canvas.height) p.y = 0;
+
+                    this.drawParticle(p);
+                });
+
+                this.connectParticles();
+                requestAnimationFrame(() => this.animate());
+            }
+        }
+
+        const particleCanvas = document.getElementById('particle-canvas');
+        if (particleCanvas) new ParticleSystem(particleCanvas);
+
+        // ══════════════════════════════════════════════════════════════════════════
+        // GSAP ANIMATIONS
+        // ══════════════════════════════════════════════════════════════════════════
+        gsap.registerPlugin(ScrollTrigger);
+
+        // Initial hero animations
+        gsap.to('.reveal-up', {
+            opacity: 1,
+            y: 0,
+            duration: 1,
+            stagger: 0.12,
+            ease: 'power3.out',
+            delay: 0.3
+        });
+
+        // Scroll animations
+        const revealTypes = [
+            { selector: 'section:not(:first-of-type) .reveal-up', from: { opacity: 0, y: 60 } },
+            { selector: '.reveal-scale', from: { opacity: 0, scale: 0.95 } },
+            { selector: '.reveal-left', from: { opacity: 0, x: -40 } },
+            { selector: '.reveal-right', from: { opacity: 0, x: 40 } }
+        ];
+
+        revealTypes.forEach(({ selector, from }) => {
+            gsap.utils.toArray(selector).forEach(el => {
+                gsap.fromTo(el, from, {
+                    opacity: 1,
+                    y: 0,
+                    x: 0,
+                    scale: 1,
+                    duration: 0.9,
+                    ease: 'power3.out',
+                    scrollTrigger: {
+                        trigger: el,
+                        start: 'top 85%',
+                        toggleActions: 'play none none reverse'
+                    }
+                });
+            });
+        });
+
+        // ══════════════════════════════════════════════════════════════════════════
+        // CUSTOM CURSOR
+        // ══════════════════════════════════════════════════════════════════════════
+        const cursor = document.getElementById('cursor');
+        const cursorDot = document.getElementById('cursor-dot');
+        const cursorRing = document.getElementById('cursor-ring');
+
+        if (cursor && window.innerWidth > 768) {
+            let mouseX = 0, mouseY = 0;
+            let dotX = 0, dotY = 0;
+            let ringX = 0, ringY = 0;
+
+            document.addEventListener('mousemove', e => {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
             });
 
-            init();
-        })();
+            function animateCursor() {
+                dotX += (mouseX - dotX) * 0.5;
+                dotY += (mouseY - dotY) * 0.5;
+                ringX += (mouseX - ringX) * 0.15;
+                ringY += (mouseY - ringY) * 0.15;
+
+                cursorDot.style.left = dotX + 'px';
+                cursorDot.style.top = dotY + 'px';
+                cursorRing.style.left = ringX + 'px';
+                cursorRing.style.top = ringY + 'px';
+
+                requestAnimationFrame(animateCursor);
+            }
+            animateCursor();
+
+            document.querySelectorAll('a, button').forEach(el => {
+                el.addEventListener('mouseenter', () => {
+                    cursorRing.style.transform = 'translate(-50%, -50%) scale(1.6)';
+                    cursorRing.style.borderColor = 'rgba(59, 130, 246, 0.6)';
+                    cursorDot.style.opacity = '0';
+                });
+                el.addEventListener('mouseleave', () => {
+                    cursorRing.style.transform = 'translate(-50%, -50%) scale(1)';
+                    cursorRing.style.borderColor = 'rgba(255, 255, 255, 0.3)';
+                    cursorDot.style.opacity = '1';
+                });
+            });
+
+            document.addEventListener('mouseleave', () => cursor.style.opacity = '0');
+            document.addEventListener('mouseenter', () => cursor.style.opacity = '1');
+        }
+
+        // ══════════════════════════════════════════════════════════════════════════
+        // SMOOTH SCROLL
+        // ══════════════════════════════════════════════════════════════════════════
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    gsap.to(window, {
+                        duration: 1,
+                        scrollTo: { y: target, offsetY: 80 },
+                        ease: 'power3.inOut'
+                    });
+                }
+            });
+        });
     </script>
+
 </body>
 </html>
