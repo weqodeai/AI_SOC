@@ -107,12 +107,12 @@ scrape_configs:
           service: 'shuffle'
 
   # ============================================================================
-  # AI Services
+  # AI Services (via host-exposed ports)
   # ============================================================================
   - job_name: 'ml-inference'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['ml-inference:8500']
+      - targets: ['host.docker.internal:8500']
         labels:
           component: 'ai-services'
           service: 'ml-inference'
@@ -120,7 +120,7 @@ scrape_configs:
   - job_name: 'alert-triage'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['alert-triage:8100']
+      - targets: ['host.docker.internal:8100']
         labels:
           component: 'ai-services'
           service: 'alert-triage'
@@ -128,7 +128,7 @@ scrape_configs:
   - job_name: 'rag-service'
     metrics_path: '/metrics'
     static_configs:
-      - targets: ['rag-service:8300']
+      - targets: ['host.docker.internal:8300']
         labels:
           component: 'ai-services'
           service: 'rag-service'
@@ -136,10 +136,26 @@ scrape_configs:
   - job_name: 'chromadb'
     metrics_path: '/api/v1/metrics'
     static_configs:
-      - targets: ['chromadb:8000']
+      - targets: ['host.docker.internal:8200']
         labels:
           component: 'ai-services'
           service: 'chromadb'
+
+  - job_name: 'ollama'
+    metrics_path: '/api/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:11434']
+        labels:
+          component: 'ai-services'
+          service: 'ollama'
+
+  - job_name: 'wazuh-integration'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['host.docker.internal:8002']
+        labels:
+          component: 'ai-services'
+          service: 'wazuh-integration'
 
   # ============================================================================
   # Database Services

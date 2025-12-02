@@ -17,6 +17,39 @@ from ml_client import MLInferenceClient, MLPrediction, enrich_llm_prompt_with_ml
 logger = logging.getLogger(__name__)
 
 
+# Category normalization map for LLM responses
+CATEGORY_ALIASES = {
+    "exfiltration": "data_exfiltration",
+    "data_theft": "data_exfiltration",
+    "privilege_elevation": "privilege_escalation",
+    "privesc": "privilege_escalation",
+    "lateral": "lateral_movement",
+    "c2": "command_and_control",
+    "c&c": "command_and_control",
+    "recon": "reconnaissance",
+    "scanning": "reconnaissance",
+    "intrusion": "intrusion_attempt",
+    "attack": "intrusion_attempt",
+    "policy": "policy_violation",
+    "compliance": "policy_violation",
+}
+
+
+def normalize_category(category: str) -> str:
+    """Normalize LLM category responses to valid AlertCategory values."""
+    category = category.lower().strip()
+    # Check aliases first
+    if category in CATEGORY_ALIASES:
+        return CATEGORY_ALIASES[category]
+    # Check if it's a valid category value
+    valid_categories = [c.value for c in AlertCategory]
+    if category in valid_categories:
+        return category
+    # Default to 'other' if unknown
+    logger.warning(f"Unknown category '{category}', defaulting to 'other'")
+    return "other"
+
+
 class OllamaClient:
     """
     Client for interacting with Ollama LLM API.
@@ -220,7 +253,7 @@ Begin your analysis now:"""
             response = TriageResponse(
                 alert_id=alert.alert_id,
                 severity=SeverityLevel(parsed.get("severity", "medium")),
-                category=AlertCategory(parsed.get("category", "other")),
+                category=AlertCategory(normalize_category(parsed.get("category", "other"))),
                 confidence=float(parsed.get("confidence", 0.5)),
                 summary=parsed.get("summary", "No summary provided"),
                 detailed_analysis=parsed.get("detailed_analysis", ""),

@@ -127,6 +127,7 @@ services:
       - '--config.file=/etc/alertmanager/alertmanager.yml'
       - '--storage.path=/alertmanager'
       - '--web.external-url=http://localhost:9093'
+      - '--cluster.listen-address='
 
     volumes:
       - ../config/alertmanager/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
@@ -161,7 +162,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "9100:9100"
+      - "9101:9100"
 
     command:
       - '--path.procfs=/host/proc'
@@ -193,7 +194,7 @@ services:
     restart: unless-stopped
 
     ports:
-      - "8080:8080"
+      - "8082:8080"
 
     volumes:
       - /:/rootfs:ro
@@ -296,7 +297,7 @@ networks:
     driver: bridge
     ipam:
       config:
-        - subnet: ${MONITORING_SUBNET:-172.28.0.0/24}
+        - subnet: ${MONITORING_SUBNET:-172.40.0.0/24}
 
   # External networks (connect to other stacks when available)
   # Uncomment when deploying with other stacks

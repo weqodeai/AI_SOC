@@ -85,7 +85,7 @@ class MLInferenceClient:
             alert: SecurityAlert object
 
         Returns:
-            Optional[List[float]]: 78 features or None if extraction fails
+            Optional[List[float]]: 77 features or None if extraction fails
         """
         try:
             # Check if full_log contains network flow data
@@ -93,7 +93,7 @@ class MLInferenceClient:
                 flow = alert.full_log.get('network_flow', {})
 
                 if flow:
-                    # Extract 78 CICIDS2017 features from flow data
+                    # Extract 77 CICIDS2017 features from flow data
                     features = [
                         flow.get('flow_duration', 0.0),
                         flow.get('total_fwd_packets', 0.0),
@@ -104,19 +104,19 @@ class MLInferenceClient:
                         # Full implementation would extract all CICIDS features
                     ]
 
-                    # Pad to 78 features if incomplete
-                    while len(features) < 78:
+                    # Pad to 77 features if incomplete
+                    while len(features) < 77:
                         features.append(0.0)
 
                     logger.debug(f"Extracted {len(features)} network features from full_log")
-                    return features[:78]  # Ensure exactly 78 features
+                    return features[:77]  # Ensure exactly 77 features
 
             # Fallback: Generate synthetic features from basic alert data
             # This allows ML prediction even without full network flow data
             if alert.source_ip or alert.dest_ip or alert.rule_level:
                 logger.debug("Generating synthetic features from basic alert data")
 
-                features = [0.0] * 78
+                features = [0.0] * 77
 
                 # Use rule_level as a proxy for severity indicators
                 if alert.rule_level:

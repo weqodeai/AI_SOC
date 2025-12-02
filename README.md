@@ -8,6 +8,132 @@
 
 ---
 
+## Quick Start - How to Actually Use This
+
+### 1. Start the System
+
+```bash
+# Clone and start
+git clone https://github.com/zhadyz/AI_SOC.git
+cd AI_SOC
+
+# Start all services (first run takes ~10-15 min to download images)
+docker-compose -f docker-compose/phase1-siem-core.yml up -d
+docker-compose -f docker-compose/ai-services.yml up -d
+docker-compose -f docker-compose/monitoring-stack.yml up -d
+```
+
+### 2. Access the Dashboards
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| **Wazuh Dashboard** | https://localhost:443 | `admin` / `admin` |
+| **Grafana Monitoring** | http://localhost:3000 | `admin` / `admin` |
+| **API Documentation** | http://localhost:8100/docs | No auth |
+
+### 3. Send an Alert for AI Analysis
+
+The AI analyzes security alerts via webhook. Here's how to test it:
+
+```bash
+# Send a test alert to the AI triage service
+curl -X POST http://localhost:8100/analyze \
+  -H "Content-Type: application/json" \
+  -d '{
+    "alert_id": "test-001",
+    "timestamp": "2025-12-02T12:00:00Z",
+    "rule_id": "5710",
+    "rule_description": "SSH brute force attack detected",
+    "rule_level": 10,
+    "source_ip": "192.168.1.100",
+    "dest_ip": "10.0.0.5",
+    "source_port": 45678,
+    "dest_port": 22,
+    "raw_log": "Failed password for root from 192.168.1.100 port 45678 ssh2"
+  }'
+```
+
+**Response** (AI analysis with ML prediction + recommendations):
+```json
+{
+  "alert_id": "test-001",
+  "severity": "high",
+  "category": "intrusion_attempt",
+  "confidence": 0.92,
+  "summary": "SSH brute force attack detected from external IP",
+  "is_true_positive": true,
+  "ml_prediction": "BENIGN",
+  "ml_confidence": 0.89,
+  "mitre_techniques": ["T1110.001"],
+  "recommendations": [
+    {"action": "Block source IP at firewall", "priority": 1},
+    {"action": "Review SSH logs for compromise indicators", "priority": 2},
+    {"action": "Enable fail2ban if not configured", "priority": 3}
+  ]
+}
+```
+
+### 4. Query MITRE ATT&CK Context (RAG Service)
+
+```bash
+# Get threat intelligence context for an attack technique
+curl -X POST http://localhost:8300/retrieve \
+  -H "Content-Type: application/json" \
+  -d '{
+    "query": "credential dumping LSASS",
+    "collection": "mitre_attack",
+    "top_k": 3
+  }'
+```
+
+### 5. Direct ML Prediction
+
+```bash
+# Get ML model prediction for network flow features
+curl -X POST http://localhost:8500/predict \
+  -H "Content-Type: application/json" \
+  -d '{
+    "features": [0.0, 0.0, 0.0, ...],
+    "model_name": "random_forest"
+  }'
+```
+
+### 6. Wazuh Integration Webhook (Production Use)
+
+For production, configure Wazuh to send alerts to:
+```
+POST http://wazuh-integration:8002/webhook
+```
+
+This automatically:
+1. Receives Wazuh alerts
+2. Sends to AI for analysis
+3. Enriches with MITRE ATT&CK context (for severity >= 8)
+4. Returns prioritized response
+
+### Service Ports Reference
+
+| Port | Service | Purpose |
+|------|---------|---------|
+| 443 | Wazuh Dashboard | SIEM web interface |
+| 3000 | Grafana | Monitoring dashboards |
+| 8100 | Alert Triage | AI alert analysis API |
+| 8300 | RAG Service | Threat intelligence context |
+| 8500 | ML Inference | Network intrusion detection |
+| 8002 | Wazuh Integration | Wazuh webhook receiver |
+| 9200 | Wazuh Indexer | OpenSearch API |
+| 55000 | Wazuh Manager | Wazuh API |
+
+### Stop Everything
+
+```bash
+docker-compose -f docker-compose/ai-services.yml down
+docker-compose -f docker-compose/monitoring-stack.yml down
+docker-compose -f docker-compose/phase1-siem-core.yml down
+```
+
+---
+
 ## Table of Contents
 
 1. [Executive Summary](#executive-summary)
