@@ -9,7 +9,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  # Force lowercase for Docker image compatibility
+  IMAGE_NAME: zhadyz/ai_soc
 
 jobs:
   # ============================================================================
@@ -74,6 +75,9 @@ jobs:
     name: Security Scan Images
     runs-on: ubuntu-latest
     needs: build-and-push
+    permissions:
+      contents: read
+      security-events: write
 
     strategy:
       matrix:
@@ -90,7 +94,7 @@ jobs:
           output: 'trivy-${{ matrix.service }}.sarif'
 
       - name: Upload scan results
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: 'trivy-${{ matrix.service }}.sarif'
 
