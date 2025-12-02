@@ -49,8 +49,8 @@ class NetworkFlow(BaseModel):
     features: List[float] = Field(
         ...,
         description="List of 78 network flow features (after dropping non-predictive columns)",
-        min_items=78,
-        max_items=78
+        min_length=78,
+        max_length=78
     )
     model_name: Optional[str] = Field(
         default="random_forest",
@@ -58,7 +58,7 @@ class NetworkFlow(BaseModel):
     )
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "features": [0.0] * 78,  # Example placeholder
                 "model_name": "random_forest"

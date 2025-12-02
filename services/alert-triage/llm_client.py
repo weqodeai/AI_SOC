@@ -189,7 +189,7 @@ Begin your analysis now:"""
         """
         Parse LLM JSON output into TriageResponse model.
 
-        Handles malformed JSON and missing fields gracefully.
+        Handles malformed JSON, markdown code blocks, and missing fields gracefully.
 
         Args:
             alert: Original alert
@@ -200,8 +200,21 @@ Begin your analysis now:"""
             Optional[TriageResponse]: Parsed response or None
         """
         try:
-            # TODO: Week 4 - Add more robust JSON extraction (handle markdown code blocks)
-            parsed = json.loads(llm_output)
+            # Extract JSON from markdown code blocks if present
+            json_text = llm_output.strip()
+
+            # Handle markdown code blocks: ```json ... ``` or ``` ... ```
+            if json_text.startswith("```"):
+                # Find the content between ``` markers
+                lines = json_text.split("\n")
+                # Remove first line (```json or ```) and last line (```)
+                json_text = "\n".join(lines[1:-1])
+
+            # Handle inline code: `{...}`
+            if json_text.startswith("`") and json_text.endswith("`"):
+                json_text = json_text[1:-1]
+
+            parsed = json.loads(json_text)
 
             # Map parsed data to Pydantic model
             response = TriageResponse(

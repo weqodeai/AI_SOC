@@ -29,16 +29,17 @@ class EmbeddingEngine:
 
         Args:
             model_name: HuggingFace model identifier
-
-        TODO: Week 5 - Load embedding model
         """
         self.model_name = model_name
-        self.model = None  # Placeholder
 
-        # TODO: Week 5 - Load sentence-transformers model
-        # from sentence_transformers import SentenceTransformer
-        # self.model = SentenceTransformer(model_name)
-        # logger.info(f"Loaded embedding model: {model_name}")
+        try:
+            from sentence_transformers import SentenceTransformer
+            logger.info(f"Loading embedding model: {model_name}")
+            self.model = SentenceTransformer(model_name)
+            logger.info(f"Successfully loaded embedding model: {model_name}")
+        except Exception as e:
+            logger.error(f"Failed to load embedding model {model_name}: {e}")
+            self.model = None
 
         logger.info(f"EmbeddingEngine initialized (model: {model_name})")
 
@@ -51,18 +52,17 @@ class EmbeddingEngine:
 
         Returns:
             List of 384 floats (embedding vector)
-
-        TODO: Week 5 - Implement embedding generation
         """
         if not self.model:
-            logger.warning("Embedding model not loaded")
-            return [0.0] * 384  # Placeholder vector
+            logger.warning("Embedding model not loaded, returning zero vector")
+            return [0.0] * 384  # Fallback vector
 
-        # TODO: Week 5 - Generate embedding
-        # embedding = self.model.encode(text, convert_to_numpy=True)
-        # return embedding.tolist()
-
-        return [0.0] * 384
+        try:
+            embedding = self.model.encode(text, convert_to_numpy=True, normalize_embeddings=True)
+            return embedding.tolist()
+        except Exception as e:
+            logger.error(f"Failed to generate embedding: {e}")
+            return [0.0] * 384
 
     def embed_batch(self, texts: List[str], batch_size: int = 32) -> np.ndarray:
         """
@@ -76,23 +76,23 @@ class EmbeddingEngine:
 
         Returns:
             numpy array of shape (len(texts), 384)
-
-        TODO: Week 5 - Implement batch embedding
         """
         if not self.model:
-            logger.warning("Embedding model not loaded")
+            logger.warning("Embedding model not loaded, returning zero vectors")
             return np.zeros((len(texts), 384))
 
-        # TODO: Week 5 - Batch embedding generation
-        # embeddings = self.model.encode(
-        #     texts,
-        #     batch_size=batch_size,
-        #     show_progress_bar=True,
-        #     convert_to_numpy=True
-        # )
-        # return embeddings
-
-        return np.zeros((len(texts), 384))
+        try:
+            embeddings = self.model.encode(
+                texts,
+                batch_size=batch_size,
+                show_progress_bar=len(texts) > 100,  # Only show progress for large batches
+                convert_to_numpy=True,
+                normalize_embeddings=True
+            )
+            return embeddings
+        except Exception as e:
+            logger.error(f"Failed to generate batch embeddings: {e}")
+            return np.zeros((len(texts), 384))
 
     def get_embedding_function(self):
         """
@@ -121,14 +121,21 @@ class EmbeddingEngine:
 
         Returns:
             float: Similarity score (0.0-1.0)
-
-        TODO: Week 5 - Implement similarity calculation
         """
-        # emb1 = self.embed_text(text1)
-        # emb2 = self.embed_text(text2)
-        # return np.dot(emb1, emb2) / (np.linalg.norm(emb1) * np.linalg.norm(emb2))
+        if not self.model:
+            logger.warning("Embedding model not loaded")
+            return 0.0
 
-        return 0.0
+        try:
+            emb1 = np.array(self.embed_text(text1))
+            emb2 = np.array(self.embed_text(text2))
+
+            # Cosine similarity (already normalized, so just dot product)
+            similarity = np.dot(emb1, emb2)
+            return float(similarity)
+        except Exception as e:
+            logger.error(f"Failed to compute similarity: {e}")
+            return 0.0
 
 
 # TODO: Week 5 - Add domain-specific embedding optimization

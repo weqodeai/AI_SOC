@@ -37,16 +37,24 @@ async def lifespan(app: FastAPI):
 
     logger.info("Starting RAG Service")
 
-    # Initialize components
-    embedding_engine = EmbeddingEngine()
-    vector_store = VectorStore(embedding_engine)
-    kb_manager = KnowledgeBaseManager(vector_store)
+    try:
+        # Initialize components
+        embedding_engine = EmbeddingEngine()
+        vector_store = VectorStore(embedding_engine)
+        kb_manager = KnowledgeBaseManager(vector_store)
 
-    # TODO: Week 5 - Initialize ChromaDB collections
-    # TODO: Week 5 - Load MITRE ATT&CK data
-    # TODO: Week 5 - Load historical incident data
+        # Initialize ChromaDB collections
+        logger.info("Initializing ChromaDB collections...")
+        collections = ['mitre_attack', 'cve_database', 'incident_history', 'security_runbooks']
+        for collection in collections:
+            vector_store.create_collection(collection)
 
-    logger.info("RAG Service initialization complete")
+        logger.info("RAG Service initialization complete")
+
+    except Exception as e:
+        logger.error(f"Failed to initialize RAG Service: {e}")
+        logger.exception(e)
+        raise
 
     yield
 
@@ -116,35 +124,37 @@ async def retrieve_context(request: RetrievalRequest):
 
     **Returns:**
         RetrievalResponse: Relevant documents with similarity scores
-
-    TODO: Week 5 - Implement full retrieval pipeline
     """
     try:
         logger.info(f"Retrieval request: query='{request.query}', collection={request.collection}")
 
-        # TODO: Week 5 - Implement vector search
-        # results = await vector_store.query(
-        #     collection=request.collection,
-        #     query_text=request.query,
-        #     top_k=request.top_k,
-        #     min_similarity=request.min_similarity
-        # )
+        # Query vector store
+        results = await vector_store.query(
+            collection_name=request.collection,
+            query_text=request.query,
+            top_k=request.top_k,
+            min_similarity=request.min_similarity
+        )
 
-        # Placeholder response
+        # Convert to response model
+        retrieval_results = [
+            RetrievalResult(
+                document=r['document'],
+                metadata=r['metadata'],
+                similarity_score=r['similarity_score']
+            )
+            for r in results
+        ]
+
         return RetrievalResponse(
             query=request.query,
-            results=[
-                RetrievalResult(
-                    document="[Placeholder] MITRE ATT&CK T1110: Brute Force - Adversaries may use brute force techniques...",
-                    metadata={"technique_id": "T1110", "tactic": "Credential Access"},
-                    similarity_score=0.92
-                )
-            ],
-            total_results=1
+            results=retrieval_results,
+            total_results=len(retrieval_results)
         )
 
     except Exception as e:
         logger.error(f"Retrieval failed: {e}")
+        logger.exception(e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -159,57 +169,86 @@ async def ingest_documents(collection: str, documents: List[Dict[str, Any]]):
 
     **Returns:**
         Ingestion status
-
-    TODO: Week 5 - Implement document ingestion
     """
-    logger.info(f"Ingesting {len(documents)} documents into {collection}")
+    try:
+        logger.info(f"Ingesting {len(documents)} documents into {collection}")
 
-    # TODO: Week 5 - Implement batch ingestion
-    # await vector_store.add_documents(collection, documents)
+        # Extract text and metadata
+        texts = [doc.get('text', '') for doc in documents]
+        metadatas = [doc.get('metadata', {}) for doc in documents]
+        ids = [doc.get('id') for doc in documents if 'id' in doc]
 
-    return {
-        "status": "success",
-        "collection": collection,
-        "documents_added": len(documents),
-        "message": "Document ingestion not yet implemented - coming in Week 5"
-    }
+        # Ingest documents
+        success = await vector_store.add_documents(
+            collection_name=collection,
+            documents=texts,
+            metadatas=metadatas,
+            ids=ids if ids else None
+        )
+
+        if success:
+            return {
+                "status": "success",
+                "collection": collection,
+                "documents_added": len(documents),
+                "message": f"Successfully ingested {len(documents)} documents"
+            }
+        else:
+            raise HTTPException(status_code=500, detail="Document ingestion failed")
+
+    except Exception as e:
+        logger.error(f"Ingestion failed: {e}")
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/collections")
 async def list_collections():
     """
     List available knowledge base collections.
-
-    TODO: Week 5 - Query ChromaDB for collections
     """
-    return {
-        "collections": [
-            {
-                "name": "mitre_attack",
-                "description": "MITRE ATT&CK techniques and tactics",
-                "document_count": 0,
-                "status": "not_initialized"
-            },
-            {
-                "name": "cve_database",
-                "description": "Critical vulnerabilities",
-                "document_count": 0,
-                "status": "not_initialized"
-            },
-            {
-                "name": "incident_history",
-                "description": "Resolved security incidents",
-                "document_count": 0,
-                "status": "not_initialized"
-            },
-            {
-                "name": "security_runbooks",
-                "description": "Response playbooks",
-                "document_count": 0,
-                "status": "not_initialized"
-            }
-        ]
-    }
+    try:
+        collection_metadata = {
+            "mitre_attack": "MITRE ATT&CK techniques and tactics",
+            "cve_database": "Critical vulnerabilities",
+            "incident_history": "Resolved security incidents",
+            "security_runbooks": "Response playbooks"
+        }
+
+        collections = []
+        for name, description in collection_metadata.items():
+            stats = vector_store.get_collection_stats(name)
+            collections.append({
+                "name": name,
+                "description": description,
+                "document_count": stats.get('count', 0),
+                "status": "initialized" if stats.get('count', 0) > 0 else "empty",
+                "metadata": stats.get('metadata', {})
+            })
+
+        return {"collections": collections}
+
+    except Exception as e:
+        logger.error(f"Failed to list collections: {e}")
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/ingest/mitre")
+async def ingest_mitre():
+    """
+    Ingest MITRE ATT&CK framework into knowledge base.
+
+    Downloads latest MITRE ATT&CK data and ingests all techniques.
+    """
+    try:
+        logger.info("Starting MITRE ATT&CK ingestion")
+        result = await kb_manager.ingest_mitre_attack()
+        return result
+    except Exception as e:
+        logger.error(f"MITRE ingestion failed: {e}")
+        logger.exception(e)
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/")
@@ -218,11 +257,12 @@ async def root():
     return {
         "service": "rag-service",
         "version": "1.0.0",
-        "status": "development",
-        "note": "Full implementation coming in Week 5",
+        "status": "production",
+        "note": "Full RAG implementation with ChromaDB and MITRE ATT&CK",
         "endpoints": {
             "retrieve": "/retrieve",
             "ingest": "/ingest",
+            "ingest_mitre": "/ingest/mitre",
             "collections": "/collections",
             "health": "/health",
             "docs": "/docs"

@@ -25,21 +25,29 @@ class VectorStore:
     - Metadata filtering
     """
 
-    def __init__(self, embedding_engine):
+    def __init__(self, embedding_engine, host: str = "chromadb", port: int = 8000):
         """
         Initialize ChromaDB client.
 
-        TODO: Week 5 - Initialize ChromaDB connection
+        Args:
+            embedding_engine: EmbeddingEngine instance
+            host: ChromaDB hostname (default: "chromadb" for Docker)
+            port: ChromaDB port (default: 8000)
         """
         self.embedding_engine = embedding_engine
-        self.client = None  # Placeholder
+        self.host = host
+        self.port = port
 
-        # TODO: Week 5 - Connect to ChromaDB
-        # self.client = chromadb.HttpClient(
-        #     host="chromadb",
-        #     port=8000,
-        #     settings=Settings(anonymized_telemetry=False)
-        # )
+        try:
+            self.client = chromadb.HttpClient(
+                host=host,
+                port=port,
+                settings=Settings(anonymized_telemetry=False)
+            )
+            logger.info(f"Connected to ChromaDB at {host}:{port}")
+        except Exception as e:
+            logger.error(f"Failed to connect to ChromaDB: {e}")
+            self.client = None
 
         logger.info("VectorStore initialized")
 
@@ -52,7 +60,7 @@ class VectorStore:
         """
         try:
             if self.client:
-                # self.client.heartbeat()
+                self.client.heartbeat()
                 return True
             return False
         except Exception as e:
@@ -73,20 +81,28 @@ class VectorStore:
 
         Returns:
             bool: Success status
-
-        TODO: Week 5 - Implement collection creation
         """
         try:
+            if not self.client:
+                logger.error("ChromaDB client not initialized")
+                return False
+
             logger.info(f"Creating collection: {name}")
 
-            # TODO: Week 5 - Create collection
-            # self.client.create_collection(
-            #     name=name,
-            #     metadata=metadata or {},
-            #     embedding_function=self.embedding_engine.get_embedding_function()
-            # )
+            # Try to get existing collection first
+            try:
+                self.client.get_collection(name=name)
+                logger.info(f"Collection {name} already exists")
+                return True
+            except:
+                # Collection doesn't exist, create it
+                self.client.create_collection(
+                    name=name,
+                    metadata=metadata or {}
+                )
+                logger.info(f"Successfully created collection: {name}")
+                return True
 
-            return True
         except Exception as e:
             logger.error(f"Failed to create collection {name}: {e}")
             return False
@@ -96,7 +112,8 @@ class VectorStore:
         collection_name: str,
         documents: List[str],
         metadatas: Optional[List[Dict[str, Any]]] = None,
-        ids: Optional[List[str]] = None
+        ids: Optional[List[str]] = None,
+        embeddings: Optional[List[List[float]]] = None
     ) -> bool:
         """
         Add documents to collection with automatic embedding.
@@ -106,26 +123,48 @@ class VectorStore:
             documents: List of text documents
             metadatas: Optional metadata for each document
             ids: Optional document IDs
+            embeddings: Optional pre-computed embeddings (if None, will generate)
 
         Returns:
             bool: Success status
-
-        TODO: Week 5 - Implement batch ingestion
         """
         try:
+            if not self.client:
+                logger.error("ChromaDB client not initialized")
+                return False
+
             logger.info(f"Adding {len(documents)} documents to {collection_name}")
 
-            # TODO: Week 5 - Add documents to ChromaDB
-            # collection = self.client.get_collection(collection_name)
-            # collection.add(
-            #     documents=documents,
-            #     metadatas=metadatas,
-            #     ids=ids or [f"doc_{i}" for i in range(len(documents))]
-            # )
+            # Get collection
+            collection = self.client.get_collection(collection_name)
 
+            # Generate IDs if not provided
+            if ids is None:
+                ids = [f"doc_{i}_{hash(doc[:50])}" for i, doc in enumerate(documents)]
+
+            # Generate embeddings if not provided
+            if embeddings is None:
+                logger.info("Generating embeddings for documents...")
+                embeddings = self.embedding_engine.embed_batch(documents)
+                if isinstance(embeddings, list):
+                    embeddings = embeddings
+                else:
+                    embeddings = embeddings.tolist()
+
+            # Add documents to collection
+            collection.add(
+                documents=documents,
+                embeddings=embeddings,
+                metadatas=metadatas or [{} for _ in documents],
+                ids=ids
+            )
+
+            logger.info(f"Successfully added {len(documents)} documents to {collection_name}")
             return True
+
         except Exception as e:
             logger.error(f"Failed to add documents: {e}")
+            logger.exception(e)
             return False
 
     async def query(
@@ -148,41 +187,57 @@ class VectorStore:
 
         Returns:
             List of results with documents, metadata, and scores
-
-        TODO: Week 5 - Implement vector search
         """
         try:
+            if not self.client:
+                logger.error("ChromaDB client not initialized")
+                return []
+
             logger.info(f"Querying {collection_name}: '{query_text[:50]}...'")
 
-            # TODO: Week 5 - Query ChromaDB
-            # collection = self.client.get_collection(collection_name)
-            # results = collection.query(
-            #     query_texts=[query_text],
-            #     n_results=top_k,
-            #     where=metadata_filter
-            # )
-            #
-            # # Filter by similarity threshold
-            # filtered_results = []
-            # for doc, metadata, distance in zip(
-            #     results['documents'][0],
-            #     results['metadatas'][0],
-            #     results['distances'][0]
-            # ):
-            #     similarity = 1 - distance  # Convert distance to similarity
-            #     if similarity >= min_similarity:
-            #         filtered_results.append({
-            #             'document': doc,
-            #             'metadata': metadata,
-            #             'similarity_score': similarity
-            #         })
-            #
-            # return filtered_results
+            # Get collection
+            collection = self.client.get_collection(collection_name)
 
-            return []
+            # Generate query embedding
+            query_embedding = self.embedding_engine.embed_text(query_text)
+
+            # Query ChromaDB
+            results = collection.query(
+                query_embeddings=[query_embedding],
+                n_results=top_k,
+                where=metadata_filter
+            )
+
+            # Filter by similarity threshold
+            filtered_results = []
+
+            # Check if results are empty
+            if not results['documents'] or not results['documents'][0]:
+                logger.warning(f"No results found for query: {query_text[:50]}")
+                return []
+
+            for doc, metadata, distance in zip(
+                results['documents'][0],
+                results['metadatas'][0],
+                results['distances'][0]
+            ):
+                # Convert distance to similarity (ChromaDB uses L2 distance)
+                # For normalized vectors, cosine similarity = 1 - (L2_distance^2 / 2)
+                similarity = 1 - (distance / 2)
+
+                if similarity >= min_similarity:
+                    filtered_results.append({
+                        'document': doc,
+                        'metadata': metadata,
+                        'similarity_score': float(similarity)
+                    })
+
+            logger.info(f"Found {len(filtered_results)} results above threshold {min_similarity}")
+            return filtered_results
 
         except Exception as e:
             logger.error(f"Query failed: {e}")
+            logger.exception(e)
             return []
 
     def get_collection_stats(self, collection_name: str) -> Dict[str, Any]:
@@ -191,20 +246,21 @@ class VectorStore:
 
         Returns:
             Dict with count, metadata, etc.
-
-        TODO: Week 5 - Implement stats retrieval
         """
         try:
-            # collection = self.client.get_collection(collection_name)
-            # return {
-            #     'name': collection_name,
-            #     'count': collection.count(),
-            #     'metadata': collection.metadata
-            # }
-            return {"count": 0, "status": "not_implemented"}
+            if not self.client:
+                logger.error("ChromaDB client not initialized")
+                return {"count": 0, "status": "not_connected"}
+
+            collection = self.client.get_collection(collection_name)
+            return {
+                'name': collection_name,
+                'count': collection.count(),
+                'metadata': collection.metadata
+            }
         except Exception as e:
             logger.error(f"Failed to get stats for {collection_name}: {e}")
-            return {}
+            return {"count": 0, "error": str(e)}
 
     def delete_collection(self, collection_name: str) -> bool:
         """
@@ -217,8 +273,13 @@ class VectorStore:
             bool: Success status
         """
         try:
+            if not self.client:
+                logger.error("ChromaDB client not initialized")
+                return False
+
             logger.warning(f"Deleting collection: {collection_name}")
-            # self.client.delete_collection(collection_name)
+            self.client.delete_collection(collection_name)
+            logger.info(f"Successfully deleted collection: {collection_name}")
             return True
         except Exception as e:
             logger.error(f"Failed to delete collection {collection_name}: {e}")

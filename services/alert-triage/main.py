@@ -179,9 +179,9 @@ async def analyze_alert(alert: SecurityAlert):
 @app.post("/batch", response_model=Dict[str, Any])
 async def batch_analyze(alerts: list[SecurityAlert]):
     """
-    Batch analyze multiple alerts.
+    Batch analyze multiple alerts concurrently.
 
-    TODO: Week 4 - Implement concurrent processing with asyncio.gather()
+    Uses asyncio.gather() for parallel processing with error handling.
 
     **Args:**
         alerts: List of SecurityAlert objects
@@ -189,12 +189,63 @@ async def batch_analyze(alerts: list[SecurityAlert]):
     **Returns:**
         Dict with results and statistics
     """
-    # TODO: Implement batch processing
-    # This is critical for processing high-volume alert queues
-    raise HTTPException(
-        status_code=501,
-        detail="Batch analysis not yet implemented - coming in Week 4"
+    import asyncio
+
+    if not alerts:
+        return {
+            "total": 0,
+            "successful": 0,
+            "failed": 0,
+            "results": [],
+            "errors": []
+        }
+
+    start_time = time.time()
+    logger.info(f"Starting batch analysis of {len(alerts)} alerts")
+
+    # Process alerts concurrently
+    tasks = [llm_client.analyze_alert(alert) for alert in alerts]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    # Categorize results
+    successful = []
+    failed = []
+    errors = []
+
+    for idx, result in enumerate(results):
+        alert_id = alerts[idx].alert_id
+
+        if isinstance(result, Exception):
+            failed.append(alert_id)
+            errors.append({
+                "alert_id": alert_id,
+                "error": str(result)
+            })
+            logger.error(f"Batch analysis failed for {alert_id}: {result}")
+        elif result is None:
+            failed.append(alert_id)
+            errors.append({
+                "alert_id": alert_id,
+                "error": "LLM analysis returned None"
+            })
+        else:
+            successful.append(result.dict())
+
+    duration = time.time() - start_time
+
+    logger.info(
+        f"Batch analysis complete: {len(successful)}/{len(alerts)} successful "
+        f"in {duration:.2f}s"
     )
+
+    return {
+        "total": len(alerts),
+        "successful": len(successful),
+        "failed": len(failed),
+        "processing_time_seconds": round(duration, 2),
+        "results": successful,
+        "errors": errors
+    }
 
 
 @app.get("/")

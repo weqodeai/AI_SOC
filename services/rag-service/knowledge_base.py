@@ -13,6 +13,7 @@ import logging
 import json
 from typing import List, Dict, Any, Optional
 from pathlib import Path
+import requests
 
 logger = logging.getLogger(__name__)
 
@@ -55,44 +56,102 @@ class KnowledgeBaseManager:
         Returns:
             Dict with ingestion statistics
 
-        TODO: Week 5 - Implement MITRE ATT&CK ingestion
         Reference: https://github.com/mitre-attack/attack-stix-data
         """
         logger.info("Ingesting MITRE ATT&CK framework")
 
-        # TODO: Week 5 - Download/load MITRE ATT&CK data
-        # if not data_path:
-        #     # Download from GitHub
-        #     data_path = self._download_mitre_attack()
-        #
-        # with open(data_path) as f:
-        #     attack_data = json.load(f)
-        #
-        # # Extract techniques
-        # techniques = []
-        # for obj in attack_data['objects']:
-        #     if obj['type'] == 'attack-pattern':
-        #         doc = f"{obj['name']}: {obj.get('description', '')}"
-        #         metadata = {
-        #             'technique_id': obj['external_references'][0]['external_id'],
-        #             'tactic': obj.get('kill_chain_phases', [{}])[0].get('phase_name'),
-        #             'type': 'mitre_technique'
-        #         }
-        #         techniques.append({'document': doc, 'metadata': metadata})
-        #
-        # # Add to ChromaDB
-        # await self.vector_store.add_documents(
-        #     collection_name='mitre_attack',
-        #     documents=[t['document'] for t in techniques],
-        #     metadatas=[t['metadata'] for t in techniques],
-        #     ids=[t['metadata']['technique_id'] for t in techniques]
-        # )
+        try:
+            # Download/load MITRE ATT&CK data
+            if not data_path:
+                logger.info("Downloading MITRE ATT&CK data from GitHub...")
+                data_path = await self._download_mitre_attack()
 
-        return {
-            "status": "not_implemented",
-            "techniques_ingested": 0,
-            "message": "MITRE ATT&CK ingestion coming in Week 5"
-        }
+            # Load JSON data
+            with open(data_path) as f:
+                attack_data = json.load(f)
+
+            logger.info(f"Loaded {len(attack_data['objects'])} MITRE ATT&CK objects")
+
+            # Create collection
+            self.vector_store.create_collection(
+                name='mitre_attack',
+                metadata={'source': 'mitre-attack', 'version': 'enterprise'}
+            )
+
+            # Extract techniques
+            techniques = []
+            for obj in attack_data['objects']:
+                if obj['type'] == 'attack-pattern':
+                    # Get external ID (e.g., T1110)
+                    external_refs = obj.get('external_references', [])
+                    technique_id = external_refs[0]['external_id'] if external_refs else 'Unknown'
+
+                    # Get tactics (kill chain phases)
+                    kill_chain = obj.get('kill_chain_phases', [])
+                    tactics = [phase['phase_name'] for phase in kill_chain]
+                    primary_tactic = tactics[0] if tactics else 'Unknown'
+
+                    # Get platforms and data sources
+                    platforms = obj.get('x_mitre_platforms', [])
+                    data_sources = obj.get('x_mitre_data_sources', [])
+
+                    # Create searchable document
+                    doc = f"""Technique: {technique_id} - {obj.get('name', 'Unknown')}
+Tactics: {', '.join(tactics)}
+Description: {obj.get('description', '')}
+Platforms: {', '.join(platforms)}
+Data Sources: {', '.join(data_sources)}"""
+
+                    metadata = {
+                        'technique_id': technique_id,
+                        'name': obj.get('name', 'Unknown'),
+                        'tactic': primary_tactic,
+                        'tactics': json.dumps(tactics),
+                        'platforms': json.dumps(platforms),
+                        'type': 'mitre_technique'
+                    }
+
+                    techniques.append({
+                        'document': doc,
+                        'metadata': metadata,
+                        'id': technique_id
+                    })
+
+            logger.info(f"Extracted {len(techniques)} attack techniques")
+
+            # Add to ChromaDB in batches
+            batch_size = 50
+            total_ingested = 0
+
+            for i in range(0, len(techniques), batch_size):
+                batch = techniques[i:i+batch_size]
+
+                await self.vector_store.add_documents(
+                    collection_name='mitre_attack',
+                    documents=[t['document'] for t in batch],
+                    metadatas=[t['metadata'] for t in batch],
+                    ids=[t['id'] for t in batch]
+                )
+
+                total_ingested += len(batch)
+                logger.info(f"Ingested batch {i//batch_size + 1}: {total_ingested}/{len(techniques)} techniques")
+
+            logger.info(f"Successfully ingested {total_ingested} MITRE ATT&CK techniques")
+
+            return {
+                "status": "success",
+                "techniques_ingested": total_ingested,
+                "message": f"MITRE ATT&CK framework ingested successfully"
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to ingest MITRE ATT&CK: {e}")
+            logger.exception(e)
+            return {
+                "status": "error",
+                "techniques_ingested": 0,
+                "message": str(e)
+            }
 
     async def ingest_cve_database(self, severity_filter: str = "CRITICAL") -> Dict[str, Any]:
         """
@@ -178,18 +237,35 @@ class KnowledgeBaseManager:
             "message": "Runbook ingestion coming in Week 5"
         }
 
-    def _download_mitre_attack(self) -> str:
+    async def _download_mitre_attack(self) -> str:
         """
         Download latest MITRE ATT&CK data from GitHub.
 
         Returns:
             Path to downloaded JSON file
-
-        TODO: Week 5 - Implement download logic
         """
-        # TODO: Download from:
-        # https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json
-        return "data/mitre-attack.json"
+        import requests
+        from pathlib import Path
+
+        url = "https://raw.githubusercontent.com/mitre/cti/master/enterprise-attack/enterprise-attack.json"
+        output_path = Path("/tmp/mitre-attack.json")
+
+        try:
+            logger.info(f"Downloading MITRE ATT&CK from {url}")
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+
+            # Save to file
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(output_path, 'w') as f:
+                json.dump(response.json(), f)
+
+            logger.info(f"Downloaded MITRE ATT&CK to {output_path}")
+            return str(output_path)
+
+        except Exception as e:
+            logger.error(f"Failed to download MITRE ATT&CK: {e}")
+            raise
 
     async def update_knowledge_base(self, collection: str) -> Dict[str, Any]:
         """
